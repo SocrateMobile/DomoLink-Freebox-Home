@@ -277,3 +277,180 @@ class FreeboxOsClient:
         """Reboot the Freebox Server."""
         await self._request("POST", "system/reboot/")
         return True
+
+    # --- Wi-Fi, WPS & Repeaters ---
+
+    async def async_get_wifi_config(self) -> dict[str, Any]:
+        """Fetch global Wi-Fi configuration."""
+        res = await self._async_get_optional("wifi/config/", {})
+        return res if isinstance(res, dict) else {}
+
+    async def async_set_wifi_enabled(self, enabled: bool) -> dict[str, Any]:
+        """Enable or disable global Wi-Fi."""
+        return await self._request("PUT", "wifi/config/", json_body={"enabled": enabled}) or {}
+
+    async def async_get_wifi_bss(self) -> list[dict[str, Any]]:
+        """Fetch configured Wi-Fi SSIDs (BSS)."""
+        res = await self._async_get_optional("wifi/bss/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_set_wifi_bss_enabled(self, bss_id: str, enabled: bool) -> dict[str, Any]:
+        """Enable or disable a specific Wi-Fi BSS/SSID."""
+        return (
+            await self._request(
+                "PUT",
+                f"wifi/bss/{bss_id}",
+                json_body={"config": {"enabled": enabled}},
+            )
+            or {}
+        )
+
+    async def async_start_wps(self, bssid: str | None = None) -> bool:
+        """Start a WPS pairing session."""
+        payload = {"bssid": bssid} if bssid else {}
+        await self._request("POST", "wifi/wps/start/", json_body=payload)
+        return True
+
+    async def async_create_wifi_guest_key(
+        self,
+        description: str = "Invité Home Assistant",
+        duration: int = 3600,
+        max_use_count: int | None = None,
+    ) -> dict[str, Any]:
+        """Create a temporary guest Wi-Fi key."""
+        payload: dict[str, Any] = {
+            "access_type": "net_only",
+            "description": description,
+            "duration": duration,
+        }
+        if max_use_count is not None:
+            payload["max_use_count"] = max_use_count
+        return await self._request("POST", "wifi/custom_key/", json_body=payload) or {}
+
+    async def async_edit_repeater(self, repeater_id: str, led_activated: bool) -> dict[str, Any]:
+        """Toggle a Wi-Fi repeater status LED."""
+        return (
+            await self._request(
+                "PUT",
+                f"repeater/{repeater_id}",
+                json_body={"led_activated": led_activated},
+            )
+            or {}
+        )
+
+    async def async_reboot_repeater(self, repeater_id: str) -> bool:
+        """Reboot a paired Wi-Fi repeater."""
+        await self._request("POST", f"repeater/{repeater_id}/reboot")
+        return True
+
+    # --- LAN, Wake-on-LAN & Parental Control ---
+
+    async def async_get_lan_hosts(self, interface: str = "pub") -> list[dict[str, Any]]:
+        """Fetch LAN hosts discovered on the given interface."""
+        res = await self._async_get_optional(f"lan/browser/{interface}/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_wake_on_lan(
+        self, mac: str, interface: str = "pub", password: str = ""
+    ) -> bool:
+        """Send a Wake-on-LAN magic packet via the Freebox."""
+        payload: dict[str, Any] = {"mac": mac}
+        if password:
+            payload["password"] = password
+        await self._request("POST", f"lan/wol/{interface}/", json_body=payload)
+        return True
+
+    async def async_get_profiles(self) -> list[dict[str, Any]]:
+        """Fetch user/family profiles."""
+        res = await self._async_get_optional("profile/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_network_controls(self) -> list[dict[str, Any]]:
+        """Fetch parental/network control rules per profile."""
+        res = await self._async_get_optional("network_control/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_set_network_control_mode(self, profile_id: int, mode: str) -> dict[str, Any]:
+        """Set parental control current_mode ('allowed', 'denied', 'webonly')."""
+        return (
+            await self._request(
+                "PUT",
+                f"network_control/{profile_id}/",
+                json_body={"current_mode": mode},
+            )
+            or {}
+        )
+
+    # --- Storage, Telephony, VPN, Player, LCD & Firmware ---
+
+    async def async_get_storage_partitions(self) -> list[dict[str, Any]]:
+        """Fetch storage partitions & free space."""
+        res = await self._async_get_optional("storage/partition/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_call_logs(self) -> list[dict[str, Any]]:
+        """Fetch call history logs."""
+        res = await self._async_get_optional("call/log/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_mark_calls_read(self) -> bool:
+        """Mark all missed call logs as read."""
+        await self._request("POST", "call/log/mark_all_as_read")
+        return True
+
+    async def async_get_voicemails(self) -> list[dict[str, Any]]:
+        """Fetch voicemail messages."""
+        res = await self._async_get_optional("call/voicemail", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_vpn_servers(self) -> list[dict[str, Any]]:
+        """Fetch configured VPN servers."""
+        res = await self._async_get_optional("vpn/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_set_vpn_server_enabled(self, server_id: str, enabled: bool) -> dict[str, Any]:
+        """Enable or disable a VPN server."""
+        return (
+            await self._request(
+                "PUT",
+                f"vpn/{server_id}/config/",
+                json_body={"enabled": enabled},
+            )
+            or {}
+        )
+
+    async def async_get_vpn_connections(self) -> list[dict[str, Any]]:
+        """Fetch active VPN client connections."""
+        res = await self._async_get_optional("vpn/connection/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_players(self) -> list[dict[str, Any]]:
+        """Fetch Freebox TV Players."""
+        res = await self._async_get_optional("player", [])
+        return res if isinstance(res, list) else []
+
+    async def async_reboot_player(self, player_id: int) -> bool:
+        """Reboot a Freebox TV Player."""
+        await self._request("POST", f"player/{player_id}/api/v6/system/reboot/")
+        return True
+
+    async def async_get_lcd_config(self) -> dict[str, Any]:
+        """Fetch Freebox OLED/LCD display configuration."""
+        res = await self._async_get_optional("lcd/config", {})
+        return res if isinstance(res, dict) else {}
+
+    async def async_set_lcd_brightness(self, brightness: int) -> dict[str, Any]:
+        """Set Freebox OLED/LCD brightness (0..100)."""
+        return (
+            await self._request(
+                "PUT",
+                "lcd/config",
+                json_body={"brightness": max(0, min(100, int(brightness)))},
+            )
+            or {}
+        )
+
+    async def async_get_update_status(self) -> dict[str, Any]:
+        """Fetch Freebox firmware update status."""
+        res = await self._async_get_optional("update/", {})
+        return res if isinstance(res, dict) else {}

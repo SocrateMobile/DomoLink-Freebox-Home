@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+import voluptuous as vol
 
 from .api import FreeboxOsClient
 from .const import CONF_API_VERSION, CONF_APP_TOKEN, CONF_USE_HTTPS, DOMAIN
@@ -20,7 +21,18 @@ PLATFORMS: list[Platform] = [
     Platform.ALARM_CONTROL_PANEL,
     Platform.CAMERA,
     Platform.BUTTON,
+    Platform.DEVICE_TRACKER,
+    Platform.NUMBER,
+    Platform.UPDATE,
 ]
+
+
+def _get_coordinators(hass: HomeAssistant) -> list[FreeboxHomeCoordinator]:
+    return [
+        val
+        for val in hass.data.get(DOMAIN, {}).values()
+        if isinstance(val, FreeboxHomeCoordinator)
+    ]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -38,6 +50,46 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    if not hass.services.has_service(DOMAIN, "wake_on_lan"):
+        async def _handle_wol(call: ServiceCall) -> None:
+            for coord in _get_coordinators(hass):
+                await coord.client.async_wake_on_lan(
+                    mac=call.data["mac"],
+                    interface=call.data.get("interface", "pub"),
+                )
+
+        async def _handle_guest_wifi(call: ServiceCall) -> None:
+            for coord in _get_coordinators(hass):
+                await coord.client.async_create_wifi_guest_key(
+                    description=call.data.get("description", "Invité Home Assistant"),
+                    duration=int(call.data.get("duration", 3600)),
+                )
+
+        async def _handle_mark_calls(call: ServiceCall) -> None:
+            for coord in _get_coordinators(hass):
+                await coord.client.async_mark_calls_read()
+                await coord.async_request_refresh()
+
+        hass.services.async_register(
+            DOMAIN,
+            "wake_on_lan",
+            _handle_wol,
+            schema=vol.Schema({vol.Required("mac"): str, vol.Optional("interface", default="pub"): str}),
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "create_wifi_guest_key",
+            _handle_guest_wifi,
+            schema=vol.Schema(
+                {
+                    vol.Optional("description", default="Invité Home Assistant"): str,
+                    vol.Optional("duration", default=3600): int,
+                }
+            ),
+        )
+        hass.services.async_register(DOMAIN, "mark_calls_read", _handle_mark_calls)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

@@ -34,6 +34,10 @@ async def async_setup_entry(
     coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[BinarySensorEntity] = [FreeboxWanBinarySensor(coordinator)]
 
+    for rep in coordinator.data.repeaters:
+        if isinstance(rep, dict) and rep.get("id") is not None:
+            entities.append(FreeboxRepeaterBinarySensor(coordinator, rep))
+
     for node_id, node in coordinator.data.nodes.items():
         cat = str(node.get("category", "")).lower()
         for ep in node.get("show_endpoints") or node.get("endpoints") or []:
@@ -64,6 +68,31 @@ class FreeboxWanBinarySensor(CoordinatorEntity[FreeboxHomeCoordinator], BinarySe
     @property
     def is_on(self) -> bool:
         return str(self.coordinator.data.connection.get("state", "")).lower() == "up"
+
+
+class FreeboxRepeaterBinarySensor(
+    CoordinatorEntity[FreeboxHomeCoordinator], BinarySensorEntity
+):
+    """Wi-Fi repeater connectivity binary sensor."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, rep: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._rep_id = str(rep["id"])
+        self._attr_unique_id = f"repeater_{self._rep_id}_conn"
+        self._attr_name = f"Répéteur {rep.get('name') or self._rep_id}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    @property
+    def is_on(self) -> bool:
+        for rep in self.coordinator.data.repeaters:
+            if isinstance(rep, dict) and str(rep.get("id")) == self._rep_id:
+                return str(rep.get("connection", "")).lower() == "connected"
+        return False
 
 
 class FreeboxHomeBinarySensor(
