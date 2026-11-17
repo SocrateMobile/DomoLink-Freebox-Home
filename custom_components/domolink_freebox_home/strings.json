@@ -1,0 +1,28 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connexion Freebox OS & Home",
+        "description": "Indiquez l'adresse de votre Freebox (par défaut mafreebox.freebox.fr en local).",
+        "data": {
+          "host": "Hôte (ex. mafreebox.freebox.fr)",
+          "port": "Port",
+          "use_https": "Utiliser HTTPS"
+        }
+      },
+      "link": {
+        "title": "Appairage physique Freebox",
+        "description": "Validez la demande d'autorisation sur l'écran LCD de votre Freebox (flèche droite), puis cliquez sur Valider."
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de joindre la Freebox.",
+      "authorization_pending": "Autorisation toujours en attente sur l'écran de la Freebox.",
+      "authorization_denied": "Autorisation refusée ou expirée sur la Freebox.",
+      "unknown": "Erreur inattendue."
+    },
+    "abort": {
+      "already_configured": "Cette Freebox est déjà configurée."
+    }
+  }
+}
