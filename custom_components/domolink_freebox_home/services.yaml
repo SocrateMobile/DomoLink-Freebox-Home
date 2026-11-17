@@ -1,0 +1,42 @@
+wake_on_lan:
+  name: Wake-on-LAN Freebox
+  description: Envoie un paquet magique Wake-on-LAN à un appareil du réseau local via la Freebox.
+  fields:
+    mac:
+      name: Adresse MAC
+      description: Adresse MAC de l'appareil cible (ex. AA:BB:CC:DD:EE:FF).
+      required: true
+      example: "AA:BB:CC:DD:EE:FF"
+      selector:
+        text:
+    interface:
+      name: Interface LAN
+      description: Interface réseau (par défaut pub).
+      required: false
+      default: "pub"
+      selector:
+        text:
+
+create_wifi_guest_key:
+  name: Créer une clé Wi-Fi invité
+  description: Crée une clé Wi-Fi temporaire sur la Freebox.
+  fields:
+    description:
+      name: Description
+      required: false
+      default: "Invité Home Assistant"
+      selector:
+        text:
+    duration:
+      name: Durée (secondes)
+      required: false
+      default: 3600
+      selector:
+        number:
+          min: 60
+          max: 86400
+          mode: box
+
+mark_calls_read:
+  name: Marquer les appels manqués comme lus
+  description: Marque tout l'historique d'appels Freebox comme lu.

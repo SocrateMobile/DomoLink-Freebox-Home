@@ -23,11 +23,15 @@ ha_const.Platform = types.SimpleNamespace(
     ALARM_CONTROL_PANEL="alarm_control_panel",
     CAMERA="camera",
     BUTTON="button",
+    DEVICE_TRACKER="device_tracker",
+    NUMBER="number",
+    UPDATE="update",
 )
 ha_const.CONF_HOST = "host"
 ha_const.CONF_PORT = "port"
 ha_core = types.ModuleType("homeassistant.core")
 ha_core.HomeAssistant = object
+ha_core.ServiceCall = object
 ha_ce = types.ModuleType("homeassistant.config_entries")
 ha_ce.ConfigEntry = object
 ha_exc = types.ModuleType("homeassistant.exceptions")
@@ -39,6 +43,7 @@ ha_dr = types.ModuleType("homeassistant.helpers.device_registry")
 ha_dr.DeviceInfo = dict
 ha_uc = types.ModuleType("homeassistant.helpers.update_coordinator")
 ha_uc.DataUpdateCoordinator = type("DataUpdateCoordinator", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
+ha_uc.CoordinatorEntity = type("CoordinatorEntity", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
 ha_uc.UpdateFailed = type("UpdateFailed", (Exception,), {})
 
 for name, mod in [
