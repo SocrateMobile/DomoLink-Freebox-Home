@@ -63,6 +63,14 @@ class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
                 if isinstance(node, dict) and node.get("id") is not None:
                     nodes_map[int(node["id"])] = node
 
+            _LOGGER.debug(
+                "Freebox updated (%s %s): nodes=%d cameras=%d repeaters=%d",
+                system.get("board_name", "unknown"),
+                self.client.api_version,
+                len(nodes_map),
+                len(cameras),
+                len(repeaters),
+            )
             return FreeboxHomeData(
                 system=system,
                 connection=connection,
