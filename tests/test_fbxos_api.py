@@ -60,16 +60,20 @@ sys.path.insert(0, str(ROOT))
 from custom_components.domolink_freebox_home.api import (  # noqa: E402
     FreeboxAuthError,
     FreeboxOsClient,
+    FreeboxOsError,
     compute_hmac_password,
 )
 from custom_components.domolink_freebox_home.home_helpers import find_endpoint  # noqa: E402
 
 
 class FakeResponse:
-    def __init__(self, json_data: dict) -> None:
+    def __init__(self, json_data: dict | None = None, status: int = 200) -> None:
         self._json = json_data
+        self.status = status
 
     async def json(self) -> dict:
+        if self._json is None:
+            raise ValueError("not json")
         return self._json
 
 
@@ -154,3 +158,42 @@ def test_find_endpoint_helper():
     ep_slot = find_endpoint(node, name="position_set", ep_type="slot")
     assert ep_sig is not None and ep_sig["value"] == 50
     assert ep_slot is not None and ep_slot["id"] == 2
+
+
+def test_optional_endpoints_degrade_gracefully_on_404():
+    err_404 = {"success": False, "error_code": "invalid_request", "msg": "Requête invalide (404)"}
+    session = FakeSession([
+        FakeResponse(err_404, status=404),
+        FakeResponse(err_404, status=404),
+        FakeResponse(err_404, status=404),
+        FakeResponse(err_404, status=404),
+    ])
+    client = FreeboxOsClient(session, host="mafreebox.freebox.fr", app_token="tok-1")
+    client.session_token = "sess-1"
+
+    assert asyncio.run(client.async_get_home_nodes()) == []
+    assert asyncio.run(client.async_get_cameras()) == []
+    assert asyncio.run(client.async_get_repeaters()) == []
+    assert asyncio.run(client.async_get_lte_aggregation()) == {}
+
+
+def test_required_system_endpoint_raises_with_path():
+    session = FakeSession([
+        FakeResponse({"success": False, "error_code": "invalid_request", "msg": "Requête invalide (404)"}, status=404),
+    ])
+    client = FreeboxOsClient(session, host="mafreebox.freebox.fr", app_token="tok-1")
+    client.session_token = "sess-1"
+
+    with pytest.raises(FreeboxOsError) as exc:
+        asyncio.run(client.async_get_system_config())
+    assert "[GET system/]" in str(exc.value)
+
+
+def test_non_json_404_response_handled():
+    session = FakeSession([FakeResponse(None, status=404)])
+    client = FreeboxOsClient(session, host="mafreebox.freebox.fr", app_token="tok-1")
+    client.session_token = "sess-1"
+
+    with pytest.raises(FreeboxOsError) as exc:
+        asyncio.run(client.async_get_system_config())
+    assert "HTTP 404" in str(exc.value)

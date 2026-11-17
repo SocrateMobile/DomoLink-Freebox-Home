@@ -5,11 +5,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import logging
 from typing import Any
 
 import aiohttp
 
 from .const import APP_ID, APP_NAME, APP_VERSION, DEVICE_NAME
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class FreeboxOsError(Exception):
@@ -108,9 +111,16 @@ class FreeboxOsClient:
                 ssl=False if self.use_https else None,
                 timeout=aiohttp.ClientTimeout(total=20),
             ) as resp:
-                data = await resp.json()
+                status_code = getattr(resp, "status", 200)
+                try:
+                    data = await resp.json()
+                except (aiohttp.ContentTypeError, ValueError) as err:
+                    raise FreeboxOsError(
+                        f"[{method} {path}] Invalid response (HTTP {status_code})",
+                        error_code=f"http_{status_code}",
+                    ) from err
         except aiohttp.ClientError as err:
-            raise FreeboxOsError(f"Network error calling {path}: {err}") from err
+            raise FreeboxOsError(f"[{method} {path}] Network error: {err}") from err
 
         if not data.get("success", False):
             err_code = str(data.get("error_code", "unknown"))
@@ -131,8 +141,8 @@ class FreeboxOsClient:
                     retry_auth=False,
                 )
             if err_code in ("auth_required", "invalid_token", "insufficient_rights"):
-                raise FreeboxAuthError(msg, error_code=err_code)
-            raise FreeboxOsError(msg, error_code=err_code)
+                raise FreeboxAuthError(f"[{method} {path}] {msg}", error_code=err_code)
+            raise FreeboxOsError(f"[{method} {path}] {msg}", error_code=err_code)
 
         return data.get("result")
 
@@ -204,28 +214,34 @@ class FreeboxOsClient:
         """Fetch WAN connection status & bitrates."""
         return await self._request("GET", "connection/") or {}
 
+    async def _async_get_optional(self, path: str, default: Any) -> Any:
+        """Fetch an optional hardware-dependent endpoint, degrading gracefully on 404/rights."""
+        try:
+            res = await self._request("GET", path)
+            return default if res is None else res
+        except FreeboxAuthError as err:
+            if err.error_code == "insufficient_rights":
+                _LOGGER.debug("Insufficient rights for optional endpoint %s: %s", path, err)
+                return default
+            raise
+        except FreeboxOsError as err:
+            _LOGGER.debug("Optional endpoint %s unavailable: %s", path, err)
+            return default
+
     async def async_get_lte_aggregation(self) -> dict[str, Any]:
         """Fetch 4G/LTE aggregation status (Freebox Delta/Ultra)."""
-        try:
-            return await self._request("GET", "connection/lte/aggregation") or {}
-        except FreeboxOsError:
-            return {}
+        res = await self._async_get_optional("connection/lte/aggregation", {})
+        return res if isinstance(res, dict) else {}
 
     async def async_get_repeaters(self) -> list[dict[str, Any]]:
         """Fetch paired Freebox Wi-Fi repeaters."""
-        try:
-            res = await self._request("GET", "repeater/")
-            return res if isinstance(res, list) else []
-        except FreeboxOsError:
-            return []
+        res = await self._async_get_optional("repeater/", [])
+        return res if isinstance(res, list) else []
 
     async def async_get_home_nodes(self) -> list[dict[str, Any]]:
         """Fetch all Freebox Home / Security nodes (alarm, sensors, shutters, lights)."""
-        try:
-            res = await self._request("GET", "home/nodes")
-            return res if isinstance(res, list) else []
-        except FreeboxAuthError:
-            return []
+        res = await self._async_get_optional("home/nodes", [])
+        return res if isinstance(res, list) else []
 
     async def async_get_home_endpoints_batch(
         self, requests: list[dict[str, int]]
@@ -249,11 +265,8 @@ class FreeboxOsClient:
 
     async def async_get_cameras(self) -> list[dict[str, Any]]:
         """Fetch Freebox Home cameras with streamUrl."""
-        try:
-            res = await self._request("GET", "camera/")
-            return res if isinstance(res, list) else []
-        except FreeboxAuthError:
-            return []
+        res = await self._async_get_optional("camera/", [])
+        return res if isinstance(res, list) else []
 
     async def async_get_camera_records(self, camera_id: str) -> list[dict[str, Any]]:
         """Fetch recorded clips for a camera."""
