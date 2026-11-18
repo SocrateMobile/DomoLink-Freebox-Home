@@ -41,6 +41,7 @@ ha_aio = types.ModuleType("homeassistant.helpers.aiohttp_client")
 ha_aio.async_get_clientsession = lambda hass: None
 ha_dr = types.ModuleType("homeassistant.helpers.device_registry")
 ha_dr.DeviceInfo = dict
+ha_dr.CONNECTION_NETWORK_MAC = "mac"
 ha_uc = types.ModuleType("homeassistant.helpers.update_coordinator")
 ha_uc.DataUpdateCoordinator = type("DataUpdateCoordinator", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
 ha_uc.CoordinatorEntity = type("CoordinatorEntity", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
