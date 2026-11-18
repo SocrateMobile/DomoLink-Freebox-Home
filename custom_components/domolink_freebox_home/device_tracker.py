@@ -59,6 +59,8 @@ async def async_setup_entry(
     for host in coordinator.data.lan_hosts:
         if not isinstance(host, dict):
             continue
+        if not host.get("active") and not host.get("persistent"):
+            continue
         mac = extract_mac(host)
         if not mac or mac in seen:
             continue

@@ -22,11 +22,15 @@ def node_device_info(node: dict[str, Any]) -> DeviceInfo:
 
 def box_device_info(host: str, system: dict[str, Any]) -> DeviceInfo:
     """Build DeviceInfo for the Freebox Server hub."""
+    model_info = system.get("model_info") if isinstance(system.get("model_info"), dict) else {}
+    pretty = str(model_info.get("pretty_name") or "").strip()
+    board = str(system.get("board_name") or "").strip()
+    name = pretty or (f"Freebox ({board})" if board else "Freebox Server")
     return DeviceInfo(
         identifiers={(DOMAIN, f"box_{system.get('mac') or host}")},
-        name=str(system.get("box_flavor") or system.get("board_name") or "Freebox Server"),
+        name=name,
         manufacturer=MANUFACTURER,
-        model=str(system.get("board_name") or "Freebox"),
+        model=pretty or board or "Freebox Server",
         sw_version=str(system.get("firmware_version") or ""),
     )
 

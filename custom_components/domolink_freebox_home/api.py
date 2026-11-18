@@ -287,6 +287,11 @@ class FreeboxOsClient:
         res = await self._async_get_optional("wifi/config/", {})
         return res if isinstance(res, dict) else {}
 
+    async def async_get_wifi_state(self) -> dict[str, Any]:
+        """Fetch real-time Wi-Fi state."""
+        res = await self._async_get_optional("wifi/state/", {})
+        return res if isinstance(res, dict) else {}
+
     async def async_set_wifi_enabled(self, enabled: bool) -> dict[str, Any]:
         """Enable or disable global Wi-Fi."""
         return await self._request("PUT", "wifi/config/", json_body={"enabled": enabled}) or {}
@@ -441,16 +446,20 @@ class FreeboxOsClient:
         res = await self._async_get_optional("lcd/config", {})
         return res if isinstance(res, dict) else {}
 
+    async def async_set_lcd_config(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Update Freebox OLED/LCD & LED strip configuration."""
+        return await self._request("PUT", "lcd/config", json_body=payload) or {}
+
     async def async_set_lcd_brightness(self, brightness: int) -> dict[str, Any]:
         """Set Freebox OLED/LCD brightness (0..100)."""
-        return (
-            await self._request(
-                "PUT",
-                "lcd/config",
-                json_body={"brightness": max(0, min(100, int(brightness)))},
-            )
-            or {}
+        return await self.async_set_lcd_config(
+            {"brightness": max(0, min(100, int(brightness)))}
         )
+
+    async def async_get_standby_status(self) -> dict[str, Any]:
+        """Fetch Freebox power-saving standby status."""
+        res = await self._async_get_optional("standby/status/", {})
+        return res if isinstance(res, dict) else {}
 
     async def async_get_update_status(self) -> dict[str, Any]:
         """Fetch Freebox firmware update status."""

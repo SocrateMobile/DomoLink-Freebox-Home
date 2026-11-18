@@ -27,6 +27,11 @@ async def async_setup_entry(
     if "enabled" in coordinator.data.wifi_config:
         entities.append(FreeboxWifiGlobalSwitch(coordinator))
 
+    if "led_strip_enabled" in coordinator.data.lcd:
+        entities.append(FreeboxLcdBoolSwitch(coordinator, "led_strip_enabled", "Bandeau LED Freebox", "mdi:led-strip-variant"))
+    if "hide_wifi_key" in coordinator.data.lcd:
+        entities.append(FreeboxLcdBoolSwitch(coordinator, "hide_wifi_key", "Masquer clé Wi-Fi écran", "mdi:eye-off"))
+
     for bss in coordinator.data.wifi_bss:
         if isinstance(bss, dict) and bss.get("id"):
             entities.append(FreeboxWifiBssSwitch(coordinator, bss))
@@ -94,6 +99,41 @@ class FreeboxWifiGlobalSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchE
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.client.async_set_wifi_enabled(False)
+        await self.coordinator.async_request_refresh()
+
+
+class FreeboxLcdBoolSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEntity):
+    """Switch controlling a boolean setting in GET/PUT lcd/config."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: FreeboxHomeCoordinator,
+        field: str,
+        label: str,
+        icon: str,
+    ) -> None:
+        super().__init__(coordinator)
+        self._field = field
+        self._attr_unique_id = f"{coordinator.client.host}_lcd_{field}"
+        self._attr_name = label
+        self._attr_icon = icon
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    @property
+    def is_on(self) -> bool | None:
+        val = self.coordinator.data.lcd.get(self._field)
+        return bool(val) if val is not None else None
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.client.async_set_lcd_config({self._field: True})
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.client.async_set_lcd_config({self._field: False})
         await self.coordinator.async_request_refresh()
 
 
