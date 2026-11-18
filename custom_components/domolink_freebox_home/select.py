@@ -40,7 +40,7 @@ class FreeboxLedStripAnimationSelect(
     """Select entity for Freebox Ultra LED strip animation."""
 
     _attr_has_entity_name = True
-    _attr_name = "Animation bandeau LED"
+    _attr_name = "03 · Système · Animation bandeau LED"
     _attr_icon = "mdi:led-strip-variant"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:

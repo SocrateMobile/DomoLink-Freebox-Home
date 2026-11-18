@@ -42,25 +42,25 @@ class FreeboxBoxSensorDescription(SensorEntityDescription):
 BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
     FreeboxBoxSensorDescription(
         key="ipv4",
-        name="Adresse IPv4",
+        name="01 · Réseau · Adresse IPv4",
         icon="mdi:ip-network",
         value_fn=lambda d: d.connection.get("ipv4"),
     ),
     FreeboxBoxSensorDescription(
         key="ipv6",
-        name="Adresse IPv6",
+        name="01 · Réseau · Adresse IPv6",
         icon="mdi:ip-network-outline",
         value_fn=lambda d: d.connection.get("ipv6"),
     ),
     FreeboxBoxSensorDescription(
         key="wan_media",
-        name="Type connexion WAN",
+        name="01 · Réseau · Type connexion WAN",
         icon="mdi:fiber-optic",
         value_fn=lambda d: d.connection.get("media"),
     ),
     FreeboxBoxSensorDescription(
         key="bandwidth_down",
-        name="Débit max descendant",
+        name="01 · Réseau · Débit max descendant",
         device_class=SensorDeviceClass.DATA_RATE,
         native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         icon="mdi:speedometer",
@@ -70,7 +70,7 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
     ),
     FreeboxBoxSensorDescription(
         key="bandwidth_up",
-        name="Débit max montant",
+        name="01 · Réseau · Débit max montant",
         device_class=SensorDeviceClass.DATA_RATE,
         native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
         icon="mdi:speedometer-slow",
@@ -79,51 +79,51 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         else None,
     ),
     FreeboxBoxSensorDescription(
-        key="uptime",
-        name="Temps de fonctionnement",
-        icon="mdi:clock-outline",
-        value_fn=lambda d: d.system.get("uptime"),
-    ),
-    FreeboxBoxSensorDescription(
-        key="wifi_state",
-        name="État Wi-Fi",
-        icon="mdi:wifi",
-        value_fn=lambda d: d.wifi_state.get("state"),
-    ),
-    FreeboxBoxSensorDescription(
-        key="disk_status",
-        name="État disque interne",
-        icon="mdi:harddisk",
-        value_fn=lambda d: d.system.get("disk_status"),
-    ),
-    FreeboxBoxSensorDescription(
         key="bytes_down",
-        name="Volume téléchargé",
+        name="01 · Réseau · Volume téléchargé",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.GIGABYTES,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        icon="mdi:download",
+        icon="mdi:download-network",
         value_fn=lambda d: _bytes_to_gb(d.connection.get("bytes_down")),
     ),
     FreeboxBoxSensorDescription(
         key="bytes_up",
-        name="Volume envoyé",
+        name="01 · Réseau · Volume envoyé",
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.GIGABYTES,
         state_class=SensorStateClass.TOTAL_INCREASING,
-        icon="mdi:upload",
+        icon="mdi:upload-network",
         value_fn=lambda d: _bytes_to_gb(d.connection.get("bytes_up")),
     ),
     FreeboxBoxSensorDescription(
         key="lan_active_count",
-        name="Appareils LAN actifs",
+        name="01 · Réseau · Appareils LAN actifs",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:devices",
         value_fn=lambda d: sum(1 for h in d.lan_hosts if isinstance(h, dict) and h.get("active")),
     ),
     FreeboxBoxSensorDescription(
+        key="wifi_state",
+        name="02 · Wi-Fi · État Wi-Fi",
+        icon="mdi:wifi",
+        value_fn=lambda d: d.wifi_state.get("state"),
+    ),
+    FreeboxBoxSensorDescription(
+        key="uptime",
+        name="03 · Système · Temps de fonctionnement",
+        icon="mdi:clock-outline",
+        value_fn=lambda d: d.system.get("uptime"),
+    ),
+    FreeboxBoxSensorDescription(
+        key="disk_status",
+        name="03 · Système · État disque interne",
+        icon="mdi:harddisk",
+        value_fn=lambda d: d.system.get("disk_status"),
+    ),
+    FreeboxBoxSensorDescription(
         key="missed_calls",
-        name="Appels manqués",
+        name="04 · Téléphonie · Appels manqués",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:phone-missed",
         value_fn=lambda d: sum(
@@ -132,14 +132,14 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
     ),
     FreeboxBoxSensorDescription(
         key="unread_voicemails",
-        name="Messages vocaux",
+        name="04 · Téléphonie · Messages vocaux",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:voicemail",
         value_fn=lambda d: len(d.voicemails),
     ),
     FreeboxBoxSensorDescription(
         key="vpn_connections",
-        name="Clients VPN connectés",
+        name="05 · VPN · Clients connectés",
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:vpn",
         value_fn=lambda d: len(d.vpn_connections),
@@ -155,8 +155,8 @@ async def async_setup_entry(
     """Set up Freebox OS & Home sensors."""
     coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[SensorEntity] = [
-        FreeboxRateSensor(coordinator, "rate_down", "Débit descendant"),
-        FreeboxRateSensor(coordinator, "rate_up", "Débit montant"),
+        FreeboxRateSensor(coordinator, "rate_down", "01 · Réseau · Débit descendant", "mdi:download-network-outline"),
+        FreeboxRateSensor(coordinator, "rate_up", "01 · Réseau · Débit montant", "mdi:upload-network-outline"),
         FreeboxTempSensor(coordinator),
         *(FreeboxBoxSensor(coordinator, desc) for desc in BOX_SENSOR_DESCRIPTIONS),
     ]
@@ -220,7 +220,7 @@ class FreeboxPartitionFreeSensor(CoordinatorEntity[FreeboxHomeCoordinator], Sens
         self._part_id = str(part["id"])
         label = str(part.get("label") or f"Disque {self._part_id}")
         self._attr_unique_id = f"{coordinator.client.host}_part_{self._part_id}"
-        self._attr_name = f"Espace libre {label}"
+        self._attr_name = f"03 · Système · Espace libre {label}"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -253,7 +253,7 @@ class FreeboxHardwareSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEnt
         self._hw_id = str(item["id"])
         self._is_fan = is_fan
         self._attr_unique_id = f"{coordinator.client.host}_{'fan' if is_fan else 'temp'}_{self._hw_id}"
-        self._attr_name = str(item.get("name") or self._hw_id)
+        self._attr_name = f"03 · Système · {item.get('name') or self._hw_id}"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -282,10 +282,17 @@ class FreeboxRateSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity)
     _attr_native_unit_of_measurement = UnitOfDataRate.MEGABITS_PER_SECOND
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, coordinator: FreeboxHomeCoordinator, field: str, label: str) -> None:
+    def __init__(
+        self,
+        coordinator: FreeboxHomeCoordinator,
+        field: str,
+        label: str,
+        icon: str = "mdi:speedometer",
+    ) -> None:
         super().__init__(coordinator)
         self._field = field
         self._attr_name = label
+        self._attr_icon = icon
         self._attr_unique_id = f"{coordinator.client.host}_{field}"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
@@ -306,7 +313,8 @@ class FreeboxTempSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity)
     _attr_device_class = SensorDeviceClass.TEMPERATURE
     _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
     _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_name = "Température Freebox"
+    _attr_name = "03 · Système · Température principale"
+    _attr_icon = "mdi:thermometer"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
         super().__init__(coordinator)

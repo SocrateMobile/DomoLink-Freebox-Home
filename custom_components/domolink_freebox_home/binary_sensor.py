@@ -56,7 +56,8 @@ class FreeboxWanBinarySensor(CoordinatorEntity[FreeboxHomeCoordinator], BinarySe
 
     _attr_has_entity_name = True
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
-    _attr_name = "Connexion Internet"
+    _attr_name = "01 · Réseau · Connexion Internet"
+    _attr_icon = "mdi:wan"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
         super().__init__(coordinator)
@@ -82,7 +83,8 @@ class FreeboxRepeaterBinarySensor(
         super().__init__(coordinator)
         self._rep_id = str(rep["id"])
         self._attr_unique_id = f"repeater_{self._rep_id}_conn"
-        self._attr_name = f"Répéteur {rep.get('name') or self._rep_id}"
+        self._attr_name = f"02 · Wi-Fi · Répéteur {rep.get('name') or self._rep_id}"
+        self._attr_icon = "mdi:wifi-star"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )

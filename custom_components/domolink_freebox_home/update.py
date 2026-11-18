@@ -30,7 +30,8 @@ class FreeboxFirmwareUpdateEntity(
     """Firmware update status reported by GET update/."""
 
     _attr_has_entity_name = True
-    _attr_name = "Firmware Freebox"
+    _attr_name = "03 · Système · Firmware"
+    _attr_icon = "mdi:update"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
         super().__init__(coordinator)
