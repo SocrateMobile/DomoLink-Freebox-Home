@@ -47,6 +47,56 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         value_fn=lambda d: d.connection.get("ipv4"),
     ),
     FreeboxBoxSensorDescription(
+        key="ipv6",
+        name="Adresse IPv6",
+        icon="mdi:ip-network-outline",
+        value_fn=lambda d: d.connection.get("ipv6"),
+    ),
+    FreeboxBoxSensorDescription(
+        key="wan_media",
+        name="Type connexion WAN",
+        icon="mdi:fiber-optic",
+        value_fn=lambda d: d.connection.get("media"),
+    ),
+    FreeboxBoxSensorDescription(
+        key="bandwidth_down",
+        name="Débit max descendant",
+        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+        icon="mdi:speedometer",
+        value_fn=lambda d: round(float(d.connection["bandwidth_down"]) / 1_000_000.0, 1)
+        if d.connection.get("bandwidth_down") is not None
+        else None,
+    ),
+    FreeboxBoxSensorDescription(
+        key="bandwidth_up",
+        name="Débit max montant",
+        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+        icon="mdi:speedometer-slow",
+        value_fn=lambda d: round(float(d.connection["bandwidth_up"]) / 1_000_000.0, 1)
+        if d.connection.get("bandwidth_up") is not None
+        else None,
+    ),
+    FreeboxBoxSensorDescription(
+        key="uptime",
+        name="Temps de fonctionnement",
+        icon="mdi:clock-outline",
+        value_fn=lambda d: d.system.get("uptime"),
+    ),
+    FreeboxBoxSensorDescription(
+        key="wifi_state",
+        name="État Wi-Fi",
+        icon="mdi:wifi",
+        value_fn=lambda d: d.wifi_state.get("state"),
+    ),
+    FreeboxBoxSensorDescription(
+        key="disk_status",
+        name="État disque interne",
+        icon="mdi:harddisk",
+        value_fn=lambda d: d.system.get("disk_status"),
+    ),
+    FreeboxBoxSensorDescription(
         key="bytes_down",
         name="Volume téléchargé",
         device_class=SensorDeviceClass.DATA_SIZE,
@@ -114,6 +164,14 @@ async def async_setup_entry(
         if isinstance(part, dict) and part.get("id") is not None and part.get("total_bytes"):
             entities.append(FreeboxPartitionFreeSensor(coordinator, part))
 
+    for hw_sensor in coordinator.data.system.get("sensors") or []:
+        if isinstance(hw_sensor, dict) and hw_sensor.get("id"):
+            entities.append(FreeboxHardwareSensor(coordinator, hw_sensor, is_fan=False))
+
+    for fan in coordinator.data.system.get("fans") or []:
+        if isinstance(fan, dict) and fan.get("id"):
+            entities.append(FreeboxHardwareSensor(coordinator, fan, is_fan=True))
+
     for node_id, node in coordinator.data.nodes.items():
         for ep in node.get("show_endpoints") or node.get("endpoints") or []:
             if (
@@ -175,6 +233,44 @@ class FreeboxPartitionFreeSensor(CoordinatorEntity[FreeboxHomeCoordinator], Sens
                 free = part.get("free_bytes")
                 if total and free is not None:
                     return round(float(free) * 100.0 / float(total), 1)
+        return None
+
+
+class FreeboxHardwareSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity):
+    """Hardware temperature or fan RPM sensor from GET system/ (sensors[] / fans[])."""
+
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(
+        self,
+        coordinator: FreeboxHomeCoordinator,
+        item: dict[str, Any],
+        *,
+        is_fan: bool,
+    ) -> None:
+        super().__init__(coordinator)
+        self._hw_id = str(item["id"])
+        self._is_fan = is_fan
+        self._attr_unique_id = f"{coordinator.client.host}_{'fan' if is_fan else 'temp'}_{self._hw_id}"
+        self._attr_name = str(item.get("name") or self._hw_id)
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+        if is_fan:
+            self._attr_native_unit_of_measurement = "RPM"
+            self._attr_icon = "mdi:fan"
+        else:
+            self._attr_device_class = SensorDeviceClass.TEMPERATURE
+            self._attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+
+    @property
+    def native_value(self) -> float | None:
+        key = "fans" if self._is_fan else "sensors"
+        for item in self.coordinator.data.system.get(key) or []:
+            if isinstance(item, dict) and str(item.get("id")) == self._hw_id:
+                val = item.get("value")
+                return float(val) if val is not None else None
         return None
 
 

@@ -25,6 +25,7 @@ ha_const.Platform = types.SimpleNamespace(
     BUTTON="button",
     DEVICE_TRACKER="device_tracker",
     NUMBER="number",
+    SELECT="select",
     UPDATE="update",
 )
 ha_const.CONF_HOST = "host"

@@ -24,6 +24,7 @@ ha_const.Platform = types.SimpleNamespace(
     BUTTON="button",
     DEVICE_TRACKER="device_tracker",
     NUMBER="number",
+    SELECT="select",
     UPDATE="update",
 )
 ha_const.CONF_HOST = "host"
@@ -193,3 +194,21 @@ def test_resolve_host_name_prefers_friendly_name_over_mac():
         == "Apple, Inc. (EE:FF)"
     )
     assert resolve_host_name({}, mac) == "AA:BB:CC:DD:EE:FF"
+
+
+def test_box_device_info_uses_pretty_name():
+    from custom_components.domolink_freebox_home.home_helpers import box_device_info
+
+    info = box_device_info(
+        "mafreebox.freebox.fr",
+        {
+            "mac": "AA:BB:CC:DD:EE:FF",
+            "box_flavor": "full",
+            "board_name": "fbxgw9r",
+            "firmware_version": "4.8.15",
+            "model_info": {"pretty_name": "Freebox Ultra"},
+        },
+    )
+    assert info["name"] == "Freebox Ultra"
+    assert info["model"] == "Freebox Ultra"
+    assert info["sw_version"] == "4.8.15"
