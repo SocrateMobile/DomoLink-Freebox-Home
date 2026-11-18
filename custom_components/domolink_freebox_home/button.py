@@ -116,7 +116,7 @@ class FreeboxPlayerRebootButton(CoordinatorEntity[FreeboxHomeCoordinator], Butto
 
     def __init__(self, coordinator: FreeboxHomeCoordinator, player: dict) -> None:
         super().__init__(coordinator)
-        self._player_id = int(player["id"])
+        self._player_id = str(player["id"])
         self._attr_unique_id = f"player_{self._player_id}_reboot"
         self._attr_name = f"Redémarrer {player.get('device_name') or f'Player {self._player_id}'}"
         self._attr_device_info = box_device_info(

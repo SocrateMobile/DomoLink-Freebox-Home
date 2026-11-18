@@ -59,6 +59,7 @@ class FreeboxOsClient:
         self.session_token: str | None = None
         self.permissions: dict[str, bool] = {}
         self._auth_lock = asyncio.Lock()
+        self._req_semaphore = asyncio.Semaphore(4)
 
     @property
     def base_origin(self) -> str:
@@ -103,22 +104,23 @@ class FreeboxOsClient:
 
         url = self._api_url(path)
         try:
-            async with self._session.request(
-                method,
-                url,
-                json=json_body,
-                headers=headers,
-                ssl=False if self.use_https else None,
-                timeout=aiohttp.ClientTimeout(total=20),
-            ) as resp:
-                status_code = getattr(resp, "status", 200)
-                try:
-                    data = await resp.json()
-                except (aiohttp.ContentTypeError, ValueError) as err:
-                    raise FreeboxOsError(
-                        f"[{method} {path}] Invalid response (HTTP {status_code})",
-                        error_code=f"http_{status_code}",
-                    ) from err
+            async with self._req_semaphore:
+                async with self._session.request(
+                    method,
+                    url,
+                    json=json_body,
+                    headers=headers,
+                    ssl=False if self.use_https else None,
+                    timeout=aiohttp.ClientTimeout(total=20),
+                ) as resp:
+                    status_code = getattr(resp, "status", 200)
+                    try:
+                        data = await resp.json()
+                    except (aiohttp.ContentTypeError, ValueError) as err:
+                        raise FreeboxOsError(
+                            f"[{method} {path}] Invalid response (HTTP {status_code})",
+                            error_code=f"http_{status_code}",
+                        ) from err
         except aiohttp.ClientError as err:
             raise FreeboxOsError(f"[{method} {path}] Network error: {err}") from err
 
@@ -140,7 +142,7 @@ class FreeboxOsClient:
                     require_auth=require_auth,
                     retry_auth=False,
                 )
-            if err_code in ("auth_required", "invalid_token", "insufficient_rights"):
+            if err_code in ("auth_required", "invalid_token", "insufficient_rights", "access_denied"):
                 raise FreeboxAuthError(f"[{method} {path}] {msg}", error_code=err_code)
             raise FreeboxOsError(f"[{method} {path}] {msg}", error_code=err_code)
 
@@ -215,15 +217,15 @@ class FreeboxOsClient:
         return await self._request("GET", "connection/") or {}
 
     async def _async_get_optional(self, path: str, default: Any) -> Any:
-        """Fetch an optional hardware-dependent endpoint, degrading gracefully on 404/rights."""
+        """Fetch an optional endpoint without wiping the active session on missing rights/404."""
         try:
-            res = await self._request("GET", path)
+            res = await self._request("GET", path, retry_auth=False)
             return default if res is None else res
         except FreeboxAuthError as err:
-            if err.error_code == "insufficient_rights":
-                _LOGGER.debug("Insufficient rights for optional endpoint %s: %s", path, err)
-                return default
-            raise
+            if err.error_code == "invalid_token":
+                raise
+            _LOGGER.debug("Optional endpoint %s skipped (auth/rights): %s", path, err)
+            return default
         except FreeboxOsError as err:
             _LOGGER.debug("Optional endpoint %s unavailable: %s", path, err)
             return default
