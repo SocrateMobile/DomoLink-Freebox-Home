@@ -40,6 +40,7 @@ ha_aio = types.ModuleType("homeassistant.helpers.aiohttp_client")
 ha_aio.async_get_clientsession = lambda hass: None
 ha_dr = types.ModuleType("homeassistant.helpers.device_registry")
 ha_dr.DeviceInfo = dict
+ha_dr.CONNECTION_NETWORK_MAC = "mac"
 ha_uc = types.ModuleType("homeassistant.helpers.update_coordinator")
 ha_uc.DataUpdateCoordinator = type("DataUpdateCoordinator", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
 ha_uc.UpdateFailed = type("UpdateFailed", (Exception,), {})
@@ -73,7 +74,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from custom_components.domolink_freebox_home.api import FreeboxOsClient  # noqa: E402
-from custom_components.domolink_freebox_home.device_tracker import extract_mac  # noqa: E402
+from custom_components.domolink_freebox_home.device_tracker import (  # noqa: E402
+    extract_mac,
+    resolve_host_name,
+)
 
 
 class FakeResponse:
@@ -169,3 +173,23 @@ def test_optional_auth_required_does_not_wipe_session_token():
     assert asyncio.run(client.async_get_vpn_servers()) == []
     assert asyncio.run(client.async_get_players()) == []
     assert client.session_token == "active-session"
+
+
+def test_resolve_host_name_prefers_friendly_name_over_mac():
+    mac = "aa:bb:cc:dd:ee:ff"
+    assert resolve_host_name({"primary_name": "iPhone Salon"}, mac) == "iPhone Salon"
+    assert (
+        resolve_host_name(
+            {"primary_name": "AA:BB:CC:DD:EE:FF", "names": [{"name": "MacBook-Pro"}]},
+            mac,
+        )
+        == "MacBook-Pro"
+    )
+    assert (
+        resolve_host_name(
+            {"primary_name": "", "vendor_name": "Apple, Inc."},
+            mac,
+        )
+        == "Apple, Inc. (EE:FF)"
+    )
+    assert resolve_host_name({}, mac) == "AA:BB:CC:DD:EE:FF"
