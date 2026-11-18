@@ -63,9 +63,11 @@ class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
 
     async def _async_update_data(self) -> FreeboxHomeData:
         try:
+            # First authenticate & fetch required core endpoints so session_token is guaranteed valid
+            system = await self.client.async_get_system_config()
+            connection = await self.client.async_get_connection_status()
+
             (
-                system,
-                connection,
                 lte,
                 repeaters,
                 nodes_list,
@@ -84,8 +86,6 @@ class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
                 lcd,
                 update_status,
             ) = await asyncio.gather(
-                self.client.async_get_system_config(),
-                self.client.async_get_connection_status(),
                 self.client.async_get_lte_aggregation(),
                 self.client.async_get_repeaters(),
                 self.client.async_get_home_nodes(),

@@ -26,7 +26,10 @@ from .home_helpers import box_device_info, node_device_info
 def _bytes_to_gb(raw: Any) -> float | None:
     if raw is None:
         return None
-    return round(float(raw) / (1024**3), 2)
+    try:
+        return round(float(raw) / (1024**3), 2)
+    except (TypeError, ValueError):
+        return None
 
 
 @dataclass(frozen=True, kw_only=True)

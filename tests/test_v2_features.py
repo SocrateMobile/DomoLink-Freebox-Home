@@ -46,6 +46,7 @@ ha_uc.UpdateFailed = type("UpdateFailed", (Exception,), {})
 ha_comp = types.ModuleType("homeassistant.components")
 ha_dt = types.ModuleType("homeassistant.components.device_tracker")
 ha_dt.SourceType = types.SimpleNamespace(ROUTER="router")
+ha_dt.ScannerEntity = object
 ha_dt_ce = types.ModuleType("homeassistant.components.device_tracker.config_entry")
 ha_dt_ce.ScannerEntity = object
 ha_ep = types.ModuleType("homeassistant.helpers.entity_platform")
@@ -153,3 +154,18 @@ def test_lcd_and_vpn_optional_degradation():
     res = asyncio.run(client.async_set_lcd_brightness(60))
     assert res["brightness"] == 60
     assert session.calls[2][2]["json"] == {"brightness": 60}
+
+
+def test_optional_auth_required_does_not_wipe_session_token():
+    session = FakeSession([
+        FakeResponse({"success": False, "error_code": "auth_required", "msg": "Missing right"}),
+        FakeResponse({"success": False, "error_code": "access_denied", "msg": "Denied"}),
+        FakeResponse({"success": False, "error_code": "ratelimited", "msg": "Too many requests"}),
+    ])
+    client = FreeboxOsClient(session, host="mafreebox.freebox.fr", app_token="tok")
+    client.session_token = "active-session"
+
+    assert asyncio.run(client.async_get_call_logs()) == []
+    assert asyncio.run(client.async_get_vpn_servers()) == []
+    assert asyncio.run(client.async_get_players()) == []
+    assert client.session_token == "active-session"

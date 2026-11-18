@@ -139,14 +139,13 @@ def test_auth_required_reopens_session_and_retries():
         FakeResponse({"success": False, "error_code": "auth_required", "msg": "Auth required"}),
         FakeResponse({"success": True, "result": {"challenge": "chal-2"}}),
         FakeResponse({"success": True, "result": {"session_token": "sess-2", "permissions": {"home": True}}}),
-        FakeResponse({"success": True, "result": [{"id": 1, "category": "alarm"}]}),
+        FakeResponse({"success": True, "result": {"board_name": "fbxgw9r"}}),
     ])
     client = FreeboxOsClient(session, host="mafreebox.freebox.fr", app_token="tok-1")
     client.session_token = "expired-sess"
 
-    nodes = asyncio.run(client.async_get_home_nodes())
-    assert len(nodes) == 1
-    assert nodes[0]["id"] == 1
+    sys_cfg = asyncio.run(client.async_get_system_config())
+    assert sys_cfg["board_name"] == "fbxgw9r"
     assert client.session_token == "sess-2"
 
 

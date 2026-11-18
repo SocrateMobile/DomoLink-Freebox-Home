@@ -106,7 +106,8 @@ class FreeboxWifiBssSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEnti
     def __init__(self, coordinator: FreeboxHomeCoordinator, bss: dict[str, Any]) -> None:
         super().__init__(coordinator)
         self._bss_id = str(bss["id"])
-        ssid = bss.get("config", {}).get("ssid") or self._bss_id
+        cfg = bss.get("config") if isinstance(bss.get("config"), dict) else {}
+        ssid = cfg.get("ssid") or self._bss_id
         self._attr_unique_id = f"{coordinator.client.host}_bss_{self._bss_id}"
         self._attr_name = f"SSID {ssid} ({self._bss_id})"
         self._attr_device_info = box_device_info(
@@ -117,7 +118,8 @@ class FreeboxWifiBssSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEnti
     def is_on(self) -> bool | None:
         for bss in self.coordinator.data.wifi_bss:
             if isinstance(bss, dict) and str(bss.get("id")) == self._bss_id:
-                return bool(bss.get("config", {}).get("enabled", False))
+                cfg = bss.get("config") if isinstance(bss.get("config"), dict) else {}
+                return bool(cfg.get("enabled", False))
         return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
