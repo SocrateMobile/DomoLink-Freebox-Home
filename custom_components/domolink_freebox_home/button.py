@@ -39,7 +39,8 @@ class FreeboxRebootButton(CoordinatorEntity[FreeboxHomeCoordinator], ButtonEntit
 
     _attr_has_entity_name = True
     _attr_device_class = ButtonDeviceClass.RESTART
-    _attr_name = "Redémarrer la Freebox"
+    _attr_name = "03 · Système · Redémarrer Freebox"
+    _attr_icon = "mdi:restart"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
         super().__init__(coordinator)
@@ -56,7 +57,7 @@ class FreeboxWpsButton(CoordinatorEntity[FreeboxHomeCoordinator], ButtonEntity):
     """Button to start a Wi-Fi WPS pairing session."""
 
     _attr_has_entity_name = True
-    _attr_name = "Démarrer WPS Wi-Fi"
+    _attr_name = "02 · Wi-Fi · Démarrer WPS"
     _attr_icon = "mdi:wifi-sync"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
@@ -74,7 +75,7 @@ class FreeboxMarkCallsReadButton(CoordinatorEntity[FreeboxHomeCoordinator], Butt
     """Button to mark all missed Freebox phone calls as read."""
 
     _attr_has_entity_name = True
-    _attr_name = "Marquer appels comme lus"
+    _attr_name = "04 · Téléphonie · Marquer appels lus"
     _attr_icon = "mdi:phone-check"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
@@ -99,7 +100,8 @@ class FreeboxRepeaterRebootButton(CoordinatorEntity[FreeboxHomeCoordinator], But
         super().__init__(coordinator)
         self._rep_id = str(rep["id"])
         self._attr_unique_id = f"repeater_{self._rep_id}_reboot"
-        self._attr_name = f"Redémarrer Répéteur {rep.get('name') or self._rep_id}"
+        self._attr_name = f"02 · Wi-Fi · Redémarrer Répéteur {rep.get('name') or self._rep_id}"
+        self._attr_icon = "mdi:restart"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -118,7 +120,8 @@ class FreeboxPlayerRebootButton(CoordinatorEntity[FreeboxHomeCoordinator], Butto
         super().__init__(coordinator)
         self._player_id = str(player["id"])
         self._attr_unique_id = f"player_{self._player_id}_reboot"
-        self._attr_name = f"Redémarrer {player.get('device_name') or f'Player {self._player_id}'}"
+        self._attr_name = f"03 · Système · Redémarrer {player.get('device_name') or f'Player {self._player_id}'}"
+        self._attr_icon = "mdi:television-box"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )

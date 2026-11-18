@@ -212,3 +212,20 @@ def test_box_device_info_uses_pretty_name():
     assert info["name"] == "Freebox Ultra"
     assert info["model"] == "Freebox Ultra"
     assert info["sw_version"] == "4.8.15"
+
+
+def test_lan_status_dots_icons_and_sorting():
+    from custom_components.domolink_freebox_home.device_tracker import (
+        FreeboxLanDeviceTracker,
+        format_lan_device_label,
+    )
+    from custom_components.domolink_freebox_home.home_helpers import host_type_icon
+
+    assert FreeboxLanDeviceTracker._attr_entity_registry_enabled_default is True
+    assert format_lan_device_label("iPhone", True) == "🟢 iPhone"
+    assert format_lan_device_label("MacBook", False) == "🟠 MacBook"
+    assert "Freebox Ultra" < format_lan_device_label("AAA", True)
+    assert host_type_icon("smartphone", True) == "mdi:cellphone"
+    assert host_type_icon("workstation", True) == "mdi:desktop-tower-monitor"
+    assert host_type_icon("unknown_xyz", True) == "mdi:lan-connect"
+    assert host_type_icon("unknown_xyz", False) == "mdi:lan-disconnect"

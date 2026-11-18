@@ -28,9 +28,9 @@ async def async_setup_entry(
         entities.append(FreeboxWifiGlobalSwitch(coordinator))
 
     if "led_strip_enabled" in coordinator.data.lcd:
-        entities.append(FreeboxLcdBoolSwitch(coordinator, "led_strip_enabled", "Bandeau LED Freebox", "mdi:led-strip-variant"))
+        entities.append(FreeboxLcdBoolSwitch(coordinator, "led_strip_enabled", "03 · Système · Bandeau LED", "mdi:led-strip-variant"))
     if "hide_wifi_key" in coordinator.data.lcd:
-        entities.append(FreeboxLcdBoolSwitch(coordinator, "hide_wifi_key", "Masquer clé Wi-Fi écran", "mdi:eye-off"))
+        entities.append(FreeboxLcdBoolSwitch(coordinator, "hide_wifi_key", "03 · Système · Masquer clé Wi-Fi écran", "mdi:eye-off"))
 
     for bss in coordinator.data.wifi_bss:
         if isinstance(bss, dict) and bss.get("id"):
@@ -78,7 +78,7 @@ class FreeboxWifiGlobalSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchE
     """Switch enabling/disabling global Freebox Wi-Fi."""
 
     _attr_has_entity_name = True
-    _attr_name = "Wi-Fi Freebox"
+    _attr_name = "02 · Wi-Fi · Wi-Fi global"
     _attr_icon = "mdi:wifi"
 
     def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
@@ -149,7 +149,7 @@ class FreeboxWifiBssSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEnti
         cfg = bss.get("config") if isinstance(bss.get("config"), dict) else {}
         ssid = cfg.get("ssid") or self._bss_id
         self._attr_unique_id = f"{coordinator.client.host}_bss_{self._bss_id}"
-        self._attr_name = f"SSID {ssid} ({self._bss_id})"
+        self._attr_name = f"02 · Wi-Fi · SSID {ssid} ({self._bss_id})"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -181,7 +181,7 @@ class FreeboxRepeaterLedSwitch(CoordinatorEntity[FreeboxHomeCoordinator], Switch
         super().__init__(coordinator)
         self._rep_id = str(rep["id"])
         self._attr_unique_id = f"repeater_{self._rep_id}_led"
-        self._attr_name = f"LED Répéteur {rep.get('name') or self._rep_id}"
+        self._attr_name = f"02 · Wi-Fi · LED Répéteur {rep.get('name') or self._rep_id}"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -214,7 +214,7 @@ class FreeboxParentalSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEnt
         super().__init__(coordinator)
         self._profile_id = profile_id
         self._attr_unique_id = f"parental_{profile_id}"
-        self._attr_name = f"Internet {profile_name}"
+        self._attr_name = f"06 · Contrôle parental · Internet {profile_name}"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -249,7 +249,7 @@ class FreeboxVpnSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEntity):
         super().__init__(coordinator)
         self._vpn_id = str(vpn["name"])
         self._attr_unique_id = f"vpn_{self._vpn_id}"
-        self._attr_name = f"Serveur VPN {self._vpn_id}"
+        self._attr_name = f"05 · VPN · Serveur {self._vpn_id}"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
         )

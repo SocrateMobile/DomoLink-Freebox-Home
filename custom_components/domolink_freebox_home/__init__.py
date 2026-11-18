@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
@@ -92,6 +93,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "mark_calls_read", _handle_mark_calls)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    # Re-enable any integration-disabled entities (e.g. device_tracker created disabled in v2.0.x)
+    ent_reg = er.async_get(hass)
+    for ent_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
+        if ent_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
+            ent_reg.async_update_entity(ent_entry.entity_id, disabled_by=None)
+
     return True
 
 

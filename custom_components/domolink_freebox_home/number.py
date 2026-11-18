@@ -35,7 +35,7 @@ class FreeboxLcdBrightnessNumber(
     """Number entity controlling Freebox OLED/LCD brightness (0..100%)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Luminosité écran Freebox"
+    _attr_name = "03 · Système · Luminosité écran"
     _attr_native_min_value = 0.0
     _attr_native_max_value = 100.0
     _attr_native_step = 5.0
@@ -66,7 +66,7 @@ class FreeboxLedStripBrightnessNumber(
     """Number entity controlling Freebox Ultra LED strip brightness (0..100%)."""
 
     _attr_has_entity_name = True
-    _attr_name = "Luminosité bandeau LED"
+    _attr_name = "03 · Système · Luminosité bandeau LED"
     _attr_native_min_value = 0.0
     _attr_native_max_value = 100.0
     _attr_native_step = 5.0

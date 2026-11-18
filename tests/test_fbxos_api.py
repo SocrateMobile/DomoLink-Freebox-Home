@@ -33,16 +33,24 @@ ha_const.CONF_PORT = "port"
 ha_core = types.ModuleType("homeassistant.core")
 ha_core.HomeAssistant = object
 ha_core.ServiceCall = object
+ha_core.callback = lambda fn: fn
 ha_ce = types.ModuleType("homeassistant.config_entries")
 ha_ce.ConfigEntry = object
 ha_exc = types.ModuleType("homeassistant.exceptions")
 ha_exc.ConfigEntryAuthFailed = type("ConfigEntryAuthFailed", (Exception,), {})
 ha_helpers = types.ModuleType("homeassistant.helpers")
+ha_er = types.ModuleType("homeassistant.helpers.entity_registry")
+ha_er.async_get = lambda hass: None
+ha_er.async_entries_for_config_entry = lambda reg, eid: []
+ha_er.RegistryEntryDisabler = types.SimpleNamespace(INTEGRATION="integration")
+ha_helpers.entity_registry = ha_er
 ha_aio = types.ModuleType("homeassistant.helpers.aiohttp_client")
 ha_aio.async_get_clientsession = lambda hass: None
 ha_dr = types.ModuleType("homeassistant.helpers.device_registry")
 ha_dr.DeviceInfo = dict
 ha_dr.CONNECTION_NETWORK_MAC = "mac"
+ha_dr.async_get = lambda hass: None
+ha_helpers.device_registry = ha_dr
 ha_uc = types.ModuleType("homeassistant.helpers.update_coordinator")
 ha_uc.DataUpdateCoordinator = type("DataUpdateCoordinator", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
 ha_uc.CoordinatorEntity = type("CoordinatorEntity", (), {"__class_getitem__": classmethod(lambda cls, item: cls)})
@@ -55,6 +63,7 @@ for name, mod in [
     ("homeassistant.config_entries", ha_ce),
     ("homeassistant.exceptions", ha_exc),
     ("homeassistant.helpers", ha_helpers),
+    ("homeassistant.helpers.entity_registry", ha_er),
     ("homeassistant.helpers.aiohttp_client", ha_aio),
     ("homeassistant.helpers.device_registry", ha_dr),
     ("homeassistant.helpers.update_coordinator", ha_uc),
