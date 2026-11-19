@@ -1,4 +1,4 @@
-"""Device tracker platform for Freebox LAN hosts."""
+"""Device tracker platform for Freebox Wi-Fi / LAN clients (grouped under 'Wi-Fi')."""
 
 from __future__ import annotations
 
@@ -7,15 +7,13 @@ from typing import Any
 
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import host_type_icon
+from .home_helpers import host_type_icon, wifi_clients_device_info
 
 _MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$")
 
@@ -49,9 +47,11 @@ def resolve_host_name(host: dict[str, Any], mac: str) -> str:
     return mac.upper()
 
 
-def format_lan_device_label(friendly_name: str, active: bool) -> str:
-    """Prefix LAN device name with green (online) or orange (offline) dot."""
+def format_lan_device_label(friendly_name: str, active: bool, mac: str | None = None) -> str:
+    """Format LAN client label with green (online) or orange (offline) dot and MAC."""
     dot = "🟢" if active else "🟠"
+    if mac and mac.upper() not in friendly_name.upper():
+        return f"{dot} {friendly_name} ({mac.upper()})"
     return f"{dot} {friendly_name}"
 
 
@@ -60,7 +60,7 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Freebox LAN host device trackers (sorted online first, then by name)."""
+    """Set up Freebox Wi-Fi/LAN trackers grouped under the 'Wi-Fi' sub-device."""
     coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
     seen: set[str] = set()
     candidates: list[tuple[bool, str, str, dict[str, Any]]] = []
@@ -76,7 +76,6 @@ async def async_setup_entry(
         friendly = resolve_host_name(host, mac)
         candidates.append((bool(host.get("active")), friendly.lower(), mac, host))
 
-    # Online devices first, then alphabetical
     candidates.sort(key=lambda item: (not item[0], item[1]))
     entities = [
         FreeboxLanDeviceTracker(coordinator, mac, host)
@@ -88,10 +87,9 @@ async def async_setup_entry(
 class FreeboxLanDeviceTracker(
     CoordinatorEntity[FreeboxHomeCoordinator], ScannerEntity
 ):
-    """Device tracker for a Freebox LAN host with status dot, icon, and MAC."""
+    """Device tracker grouped under the 'Wi-Fi' sub-device with status dot, icon, and MAC."""
 
     _attr_has_entity_name = True
-    _attr_name = None
     _attr_entity_registry_enabled_default = True
 
     def __init__(
@@ -104,22 +102,17 @@ class FreeboxLanDeviceTracker(
         self._mac = mac
         self._mac_upper = mac.upper()
         self._attr_unique_id = f"lan_{mac}"
-
         self._friendly_name = resolve_host_name(initial_host, mac)
-        active = bool(initial_host.get("active"))
-        vendor = str(initial_host.get("vendor_name") or "").strip() or "Réseau Freebox"
-        host_type = str(initial_host.get("host_type") or "").strip()
-        model_label = f"{self._mac_upper} · {host_type}" if host_type else self._mac_upper
-        box_id = coordinator.data.system.get("mac") or coordinator.client.host
-
-        self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, f"lan_{mac}")},
-            connections={(CONNECTION_NETWORK_MAC, mac)},
-            name=format_lan_device_label(self._friendly_name, active),
-            manufacturer=vendor,
-            model=model_label,
-            via_device=(DOMAIN, f"box_{box_id}"),
+        self._attr_device_info = wifi_clients_device_info(
+            coordinator.client.host, coordinator.data.system
         )
+
+    @property
+    def name(self) -> str:
+        host = self._find_host()
+        if host is not None:
+            self._friendly_name = resolve_host_name(host, self._mac)
+        return format_lan_device_label(self._friendly_name, self.is_connected, self._mac_upper)
 
     @property
     def source_type(self) -> SourceType:
@@ -136,10 +129,7 @@ class FreeboxLanDeviceTracker(
 
     @property
     def hostname(self) -> str | None:
-        host = self._find_host()
-        if not host:
-            return self._friendly_name
-        return resolve_host_name(host, self._mac)
+        return self._friendly_name
 
     def _find_host(self) -> dict[str, Any] | None:
         for host in self.coordinator.data.lan_hosts:
@@ -173,17 +163,3 @@ class FreeboxLanDeviceTracker(
             "host_type": host.get("host_type"),
             "interface": host.get("interface"),
         }
-
-    @callback
-    def _handle_coordinator_update(self) -> None:
-        """Keep the device name status dot (🟢/🟠) synchronized on state changes."""
-        host = self._find_host()
-        if host is not None:
-            self._friendly_name = resolve_host_name(host, self._mac)
-        if self.hass is not None:
-            dev_reg = dr.async_get(self.hass)
-            device = dev_reg.async_get_device(identifiers={(DOMAIN, f"lan_{self._mac}")})
-            desired_name = format_lan_device_label(self._friendly_name, self.is_connected)
-            if device is not None and device.name != desired_name:
-                dev_reg.async_update_device(device.id, name=desired_name)
-        super()._handle_coordinator_update()
