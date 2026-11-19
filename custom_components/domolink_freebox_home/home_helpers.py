@@ -180,6 +180,36 @@ def resolve_repeater_model(
             return "Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png"
     return "Répéteur Wi-Fi 5 (Pop)", "freebox_repeater_wifi5.png"
 
+
+def resolve_player_model(player: dict[str, Any] | None) -> tuple[str, str]:
+    """Resolve (commercial_name, asset_filename) for a Freebox TV Player.
+
+    Maps official signatures extracted from Freebox Connect:
+    fbx8am (Player TV Free 4K / Pop), fbx7hd-delta / devialet (Player Free Devialet),
+    fbx7hd-one (Player Freebox One), fbx6hd (Player Freebox Révolution),
+    fbx6lc / fbx6lcv2 (Player Freebox Mini 4K), appletv (Apple TV 4K).
+    """
+    if isinstance(player, dict) and player:
+        sig = " ".join(
+            str(player.get(k) or "")
+            for k in ("device_model", "model", "board_name", "device_name", "name")
+        ).lower()
+        if any(k in sig for k in ("fbx8am", "player_pop", "player pop", "pop")):
+            return "Player TV Free 4K (Pop)", "freebox_player_pop.png"
+        if any(k in sig for k in ("fbx7hd-delta", "fbx7hd_delta", "devialet", "delta")):
+            return "Player Free Devialet (Delta)", "freebox_player_devialet.png"
+        if any(k in sig for k in ("fbx7hd-one", "fbx7hd_one", "one")):
+            return "Player Freebox One", "freebox_mini_4k.png"
+        if any(k in sig for k in ("fbx6lc", "mini")):
+            return "Player Freebox Mini 4K", "freebox_mini_4k.png"
+        if any(k in sig for k in ("fbx6hd", "revolution", "révolution")):
+            return "Player Freebox Révolution", "freebox_player_revolution.png"
+        if any(k in sig for k in ("appletv", "apple tv", "apple_tv")):
+            return "Apple TV 4K (Free)", "freebox_player_appletv.png"
+        if "fbx7hd" in sig:
+            return "Player Free Devialet (Delta)", "freebox_player_devialet.png"
+    return "Player TV Free 4K (Pop)", "freebox_player_pop.png"
+
 HOST_TYPE_ICONS: dict[str, str] = {
     "smartphone": "mdi:cellphone",
     "tablet": "mdi:tablet",

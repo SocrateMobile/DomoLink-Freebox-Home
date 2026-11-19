@@ -151,6 +151,13 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         icon="mdi:vpn",
         value_fn=lambda d: len(d.vpn_connections),
     ),
+    FreeboxBoxSensorDescription(
+        key="player_count",
+        name="07 · TV / Players · Nombre de Players TV",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:television-box",
+        value_fn=lambda d: len(d.players),
+    ),
 )
 
 

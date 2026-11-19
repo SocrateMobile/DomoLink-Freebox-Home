@@ -251,6 +251,20 @@ def test_box_device_info_uses_pretty_name():
     assert resolve_repeater_model(None, {"board_name": "fbxgw9r"}) == ("Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png")
     assert resolve_repeater_model(None, {"board_name": "fbxgw8r"}) == ("Répéteur Wi-Fi 5 (Pop)", "freebox_repeater_wifi5.png")
 
+    from custom_components.domolink_freebox_home.home_helpers import resolve_player_model
+
+    player_cases = [
+        ({"device_model": "fbx8am"}, "Player TV Free 4K (Pop)", "freebox_player_pop.png"),
+        ({"device_model": "fbx7hd-delta"}, "Player Free Devialet (Delta)", "freebox_player_devialet.png"),
+        ({"device_model": "fbx7hd_one"}, "Player Freebox One", "freebox_mini_4k.png"),
+        ({"device_model": "fbx6hd"}, "Player Freebox Révolution", "freebox_player_revolution.png"),
+        ({"device_model": "fbx6lcv2"}, "Player Freebox Mini 4K", "freebox_mini_4k.png"),
+        ({"device_model": "appletv"}, "Apple TV 4K (Free)", "freebox_player_appletv.png"),
+    ]
+    for p_payload, exp_label, exp_asset in player_cases:
+        assert resolve_player_model(p_payload) == (exp_label, exp_asset)
+        assert (assets_dir / exp_asset).is_file()
+
 
 def test_lan_status_dots_icons_and_sorting():
     from custom_components.domolink_freebox_home.device_tracker import (
