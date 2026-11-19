@@ -240,6 +240,16 @@ def test_box_device_info_uses_pretty_name():
         assert asset == expected_asset
         assert (assets_dir / asset).is_file()
     assert (assets_dir / "freebox_repeater.png").is_file()
+    assert (assets_dir / "freebox_repeater_wifi5.png").is_file()
+    assert (assets_dir / "freebox_repeater_wifi7.png").is_file()
+
+    from custom_components.domolink_freebox_home.home_helpers import resolve_repeater_model
+
+    assert resolve_repeater_model({"model": "F-RPQ2A"}) == ("Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png")
+    assert resolve_repeater_model({"model": "F-RPQ1A"}) == ("Répéteur Wi-Fi 5 (Pop)", "freebox_repeater_wifi5.png")
+    assert resolve_repeater_model({"name": "Répéteur Salon", "wifi_type": "2d4_5g_6g"}) == ("Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png")
+    assert resolve_repeater_model(None, {"board_name": "fbxgw9r"}) == ("Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png")
+    assert resolve_repeater_model(None, {"board_name": "fbxgw8r"}) == ("Répéteur Wi-Fi 5 (Pop)", "freebox_repeater_wifi5.png")
 
 
 def test_lan_status_dots_icons_and_sorting():

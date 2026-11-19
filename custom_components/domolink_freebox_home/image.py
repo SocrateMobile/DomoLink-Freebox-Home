@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import box_device_info, resolve_freebox_model
+from .home_helpers import box_device_info, resolve_freebox_model, resolve_repeater_model
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 
@@ -96,22 +96,40 @@ class FreeboxRepeaterImageEntity(CoordinatorEntity[FreeboxHomeCoordinator], Imag
     def extra_state_attributes(self) -> dict[str, Any]:
         reps = [r for r in self.coordinator.data.repeaters if isinstance(r, dict)]
         connected = sum(1 for r in reps if str(r.get("connection", "")).lower() == "connected")
-        return {
-            "repeater_count": len(reps),
-            "connected_count": connected,
-            "repeaters": [
+        detailed = []
+        wifi7_count = 0
+        wifi5_count = 0
+        for r in reps:
+            label, asset = resolve_repeater_model(r, self.coordinator.data.system)
+            if "wi-fi 7" in label.lower():
+                wifi7_count += 1
+            else:
+                wifi5_count += 1
+            detailed.append(
                 {
                     "id": r.get("id"),
                     "name": r.get("name"),
                     "connection": r.get("connection"),
                     "model": r.get("model"),
+                    "resolved_model": label,
+                    "asset": asset,
                 }
-                for r in reps
-            ],
+            )
+        return {
+            "repeater_count": len(reps),
+            "connected_count": connected,
+            "wifi7_count": wifi7_count,
+            "wifi5_count": wifi5_count,
+            "repeaters": detailed,
         }
 
     async def async_image(self) -> bytes | None:
-        img_path = ASSETS_DIR / "freebox_repeater.png"
+        reps = [r for r in self.coordinator.data.repeaters if isinstance(r, dict)]
+        first_rep = reps[0] if reps else None
+        _, asset = resolve_repeater_model(first_rep, self.coordinator.data.system)
+        img_path = ASSETS_DIR / asset
+        if not img_path.exists():
+            img_path = ASSETS_DIR / "freebox_repeater.png"
         if not img_path.exists():
             return None
         return await self.hass.async_add_executor_job(img_path.read_bytes)

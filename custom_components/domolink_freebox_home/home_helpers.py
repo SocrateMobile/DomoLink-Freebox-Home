@@ -118,6 +118,68 @@ def resolve_freebox_model(system: dict[str, Any]) -> tuple[str, str, str]:
         return f"Freebox ({board})", "Freebox Server", asset
     return "Freebox Server", "Freebox Server", asset
 
+
+def resolve_repeater_model(
+    repeater: dict[str, Any] | None,
+    system: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Resolve (display_label, asset_filename) for a Freebox Wi-Fi repeater (Wi-Fi 5 vs Wi-Fi 7).
+
+    Supports official hardware codes (F-RPQ1A = Wi-Fi 5 Pop, F-RPQ2A = Wi-Fi 7),
+    board/model names, and Wi-Fi band capabilities (6GHz / 802.11be vs 802.11ac).
+    """
+    if isinstance(repeater, dict) and repeater:
+        sig_parts = [
+            str(repeater.get("model") or ""),
+            str(repeater.get("board_name") or ""),
+            str(repeater.get("name") or ""),
+            str(repeater.get("wifi_type") or ""),
+            str(repeater.get("phy_type") or ""),
+            str(repeater.get("type") or ""),
+            str(repeater.get("capabilities") or ""),
+            str(repeater.get("bands") or ""),
+        ]
+        sig = " ".join(sig_parts).lower()
+        if any(
+            k in sig
+            for k in (
+                "f-rpq2",
+                "rpq2",
+                "wifi 7",
+                "wifi7",
+                "wifi_7",
+                "802.11be",
+                "6g",
+                "6ghz",
+                "fbxap2",
+                "fbxrep2",
+                "ultra",
+            )
+        ):
+            return "Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png"
+        if any(
+            k in sig
+            for k in (
+                "f-rpq1",
+                "rpq1",
+                "wifi 5",
+                "wifi5",
+                "wifi_5",
+                "802.11ac",
+                "fbxap1",
+                "fbxrep1",
+                "pop",
+            )
+        ):
+            return "Répéteur Wi-Fi 5 (Pop)", "freebox_repeater_wifi5.png"
+
+    # Fallback based on host Freebox generation if repeater payload omits model details
+    if isinstance(system, dict):
+        _, commercial, _ = resolve_freebox_model(system)
+        if "ultra" in commercial.lower() or "wi-fi 7" in commercial.lower():
+            return "Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png"
+    return "Répéteur Wi-Fi 5 (Pop)", "freebox_repeater_wifi5.png"
+
 HOST_TYPE_ICONS: dict[str, str] = {
     "smartphone": "mdi:cellphone",
     "tablet": "mdi:tablet",
