@@ -15,7 +15,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import box_device_info, node_device_info, resolve_repeater_model
+from .home_helpers import (
+    box_device_info,
+    node_device_info,
+    resolve_player_model,
+    resolve_repeater_model,
+)
 
 CATEGORY_DEVICE_CLASS: dict[str, BinarySensorDeviceClass] = {
     "dws": BinarySensorDeviceClass.DOOR,
@@ -37,6 +42,10 @@ async def async_setup_entry(
     for rep in coordinator.data.repeaters:
         if isinstance(rep, dict) and rep.get("id") is not None:
             entities.append(FreeboxRepeaterBinarySensor(coordinator, rep))
+
+    for player in coordinator.data.players:
+        if isinstance(player, dict) and player.get("id") is not None:
+            entities.append(FreeboxPlayerBinarySensor(coordinator, player))
 
     for node_id, node in coordinator.data.nodes.items():
         cat = str(node.get("category", "")).lower()
@@ -97,6 +106,53 @@ class FreeboxRepeaterBinarySensor(
             if isinstance(rep, dict) and str(rep.get("id")) == self._rep_id:
                 return str(rep.get("connection", "")).lower() == "connected"
         return False
+
+
+class FreeboxPlayerBinarySensor(
+    CoordinatorEntity[FreeboxHomeCoordinator], BinarySensorEntity
+):
+    """Freebox TV Player reachability binary sensor."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_icon = "mdi:television-box"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, player: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._player_id = str(player["id"])
+        model_label, _ = resolve_player_model(player)
+        self._attr_unique_id = f"player_{self._player_id}_reachable"
+        self._attr_name = f"07 · TV / Players · {model_label}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    def _current_player(self) -> dict[str, Any] | None:
+        for player in self.coordinator.data.players:
+            if isinstance(player, dict) and str(player.get("id")) == self._player_id:
+                return player
+        return None
+
+    @property
+    def is_on(self) -> bool:
+        player = self._current_player()
+        return bool(player.get("reachable")) if player else False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        player = self._current_player()
+        if not player:
+            return {}
+        model_label, asset = resolve_player_model(player)
+        return {
+            "id": player.get("id"),
+            "device_model": player.get("device_model"),
+            "resolved_model": model_label,
+            "mac": player.get("mac"),
+            "lan_ip": player.get("lan_ip"),
+            "api_version": player.get("api_version"),
+            "asset": asset,
+        }
 
 
 class FreeboxHomeBinarySensor(

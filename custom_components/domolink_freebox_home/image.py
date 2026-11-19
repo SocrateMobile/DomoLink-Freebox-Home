@@ -1,4 +1,4 @@
-"""Image platform for DomoLink Freebox Home (Freebox & Wi-Fi Repeater photos)."""
+"""Image platform for DomoLink Freebox Home (Freebox, Repeater, and TV Player photos)."""
 
 from __future__ import annotations
 
@@ -14,7 +14,12 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import box_device_info, resolve_freebox_model, resolve_repeater_model
+from .home_helpers import (
+    box_device_info,
+    resolve_freebox_model,
+    resolve_player_model,
+    resolve_repeater_model,
+)
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 
@@ -24,11 +29,12 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Freebox box photo and Wi-Fi repeater photo image entities."""
+    """Set up Freebox box, Wi-Fi repeater, and TV player photo image entities."""
     coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[ImageEntity] = [
         FreeboxBoxImageEntity(hass, coordinator),
         FreeboxRepeaterImageEntity(hass, coordinator),
+        FreeboxPlayerImageEntity(hass, coordinator),
     ]
     async_add_entities(entities)
 
@@ -130,6 +136,58 @@ class FreeboxRepeaterImageEntity(CoordinatorEntity[FreeboxHomeCoordinator], Imag
         img_path = ASSETS_DIR / asset
         if not img_path.exists():
             img_path = ASSETS_DIR / "freebox_repeater.png"
+        if not img_path.exists():
+            return None
+        return await self.hass.async_add_executor_job(img_path.read_bytes)
+
+
+class FreeboxPlayerImageEntity(CoordinatorEntity[FreeboxHomeCoordinator], ImageEntity):
+    """Image entity displaying the studio photo of the detected Freebox TV Player."""
+
+    _attr_has_entity_name = True
+    _attr_content_type = "image/png"
+    _attr_name = "07 · TV / Players · Photo Player TV"
+    _attr_icon = "mdi:television-box"
+
+    def __init__(self, hass: HomeAssistant, coordinator: FreeboxHomeCoordinator) -> None:
+        CoordinatorEntity.__init__(self, coordinator)
+        ImageEntity.__init__(self, hass)
+        self._attr_unique_id = f"{coordinator.client.host}_player_photo"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+        self._attr_image_last_updated = datetime.now(timezone.utc)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        players = [p for p in self.coordinator.data.players if isinstance(p, dict)]
+        reachable = sum(1 for p in players if p.get("reachable"))
+        detailed = []
+        for p in players:
+            label, asset = resolve_player_model(p)
+            detailed.append(
+                {
+                    "id": p.get("id"),
+                    "device_model": p.get("device_model"),
+                    "resolved_model": label,
+                    "reachable": bool(p.get("reachable")),
+                    "mac": p.get("mac"),
+                    "asset": asset,
+                }
+            )
+        return {
+            "player_count": len(players),
+            "reachable_count": reachable,
+            "players": detailed,
+        }
+
+    async def async_image(self) -> bytes | None:
+        players = [p for p in self.coordinator.data.players if isinstance(p, dict)]
+        first_player = players[0] if players else None
+        _, asset = resolve_player_model(first_player)
+        img_path = ASSETS_DIR / asset
+        if not img_path.exists():
+            img_path = ASSETS_DIR / "freebox_player_pop.png"
         if not img_path.exists():
             return None
         return await self.hass.async_add_executor_job(img_path.read_bytes)
