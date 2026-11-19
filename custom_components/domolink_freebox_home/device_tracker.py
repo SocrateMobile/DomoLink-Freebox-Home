@@ -14,7 +14,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
 from .device_signatures import classify_lan_host
-from .home_helpers import wifi_clients_device_info
+from .home_helpers import asset_picture_url, wifi_clients_device_info
 
 _MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$")
 
@@ -126,7 +126,15 @@ class FreeboxLanDeviceTracker(
     @property
     def icon(self) -> str:
         host = self._find_host() or {}
-        return classify_lan_host(host, self.is_connected).icon
+        return classify_lan_host(host, self.is_connected, self.coordinator.data.system).icon
+
+    @property
+    def entity_picture(self) -> str | None:
+        host = self._find_host() or {}
+        info = classify_lan_host(host, self.is_connected, self.coordinator.data.system)
+        if info.picture_asset:
+            return asset_picture_url(info.picture_asset)
+        return None
 
     @property
     def hostname(self) -> str | None:
@@ -156,7 +164,7 @@ class FreeboxLanDeviceTracker(
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         host = self._find_host() or {}
-        info = classify_lan_host(host, self.is_connected)
+        info = classify_lan_host(host, self.is_connected, self.coordinator.data.system)
         return {
             "status_indicator": "🟢 En ligne" if self.is_connected else "🟠 Hors ligne",
             "brand": info.brand,

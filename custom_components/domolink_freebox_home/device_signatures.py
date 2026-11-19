@@ -5,17 +5,35 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from .home_helpers import host_type_icon
+from .home_helpers import host_type_icon, resolve_repeater_model
 
 
 @dataclass(frozen=True)
 class DeviceClassification:
-    """Resolved brand, model/family, French category, and MDI icon for a LAN host."""
+    """Resolved brand, model/family, French category, MDI icon, and optional studio asset."""
 
     brand: str
     model: str
     category: str
     icon: str
+    picture_asset: str | None = None
+
+
+_PICTURE_ASSET_RULES: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("apple-tv", "apple tv", "appletv"), "freebox_player_appletv.png"),
+    (("fbx8am", "player-pop", "player pop", "player_pop"), "freebox_player_pop.png"),
+    (("fbx7hd-delta", "fbx7hd_delta", "player-devialet", "player devialet"), "freebox_player_devialet.png"),
+    (("fbx6hd", "player-revolution", "player revolution", "player révolution"), "freebox_player_revolution.png"),
+    (("fbx6lc", "player-mini", "freebox-mini", "freebox mini"), "freebox_mini_4k.png"),
+    (("f-rpq2", "rpq2", "fbxap2", "fbxrep2"), "freebox_repeater_wifi7.png"),
+    (("f-rpq1", "rpq1", "fbxap1", "fbxrep1"), "freebox_repeater_wifi5.png"),
+    (("fbxgw9", "freebox-ultra", "freebox ultra"), "freebox_ultra.png"),
+    (("fbxgw8", "freebox-pop", "freebox pop"), "freebox_pop.png"),
+    (("fbxgw7", "freebox-delta", "freebox delta"), "freebox_delta.png"),
+    (("fbxgw-r1", "fbxgw-r2", "freebox-server", "freebox revolution", "freebox révolution"), "freebox_revolution.png"),
+    (("fbxpro", "fbxgwpro", "freebox-pro", "freebox pro"), "freebox_pro.png"),
+    (("fbx5g", "freebox-5g", "freebox 5g"), "freebox_5g.png"),
+)
 
 
 # Ordered from most specific (model/product keywords) to broader brand/vendor rules.
@@ -141,8 +159,27 @@ _SIGNATURE_RULES: tuple[tuple[tuple[str, ...], str, str, str, str], ...] = (
 )
 
 
-def classify_lan_host(host: dict[str, Any], active: bool = True) -> DeviceClassification:
-    """Classify a Freebox LAN/Wi-Fi host into (brand, model, category, mdi_icon)."""
+def _resolve_host_picture_asset(
+    sig: str,
+    host: dict[str, Any],
+    system: dict[str, Any] | None = None,
+) -> str | None:
+    """Return a bundled studio PNG filename if the LAN host matches a generated asset."""
+    for keywords, asset in _PICTURE_ASSET_RULES:
+        if any(kw in sig for kw in keywords):
+            return asset
+    if any(k in sig for k in ("repeater", "repeteur", "répéteur")):
+        _, asset = resolve_repeater_model(host, system)
+        return asset
+    return None
+
+
+def classify_lan_host(
+    host: dict[str, Any],
+    active: bool = True,
+    system: dict[str, Any] | None = None,
+) -> DeviceClassification:
+    """Classify a Freebox LAN/Wi-Fi host into (brand, model, category, mdi_icon, picture_asset)."""
     parts: list[str] = [
         str(host.get("primary_name") or ""),
         str(host.get("vendor_name") or ""),
@@ -152,6 +189,7 @@ def classify_lan_host(host: dict[str, Any], active: bool = True) -> DeviceClassi
         if isinstance(entry, dict) and entry.get("name"):
             parts.append(str(entry["name"]))
     sig = " ".join(parts).lower()
+    picture_asset = _resolve_host_picture_asset(sig, host, system)
 
     for keywords, brand, model, category, icon in _SIGNATURE_RULES:
         if any(kw in sig for kw in keywords):
@@ -160,6 +198,7 @@ def classify_lan_host(host: dict[str, Any], active: bool = True) -> DeviceClassi
                 model=model,
                 category=category,
                 icon=icon,
+                picture_asset=picture_asset,
             )
 
     vendor = str(host.get("vendor_name") or "").strip()
@@ -169,4 +208,5 @@ def classify_lan_host(host: dict[str, Any], active: bool = True) -> DeviceClassi
         model=host_type or "Périphérique réseau",
         category=host_type or "Réseau",
         icon=host_type_icon(host_type, active),
+        picture_asset=picture_asset,
     )

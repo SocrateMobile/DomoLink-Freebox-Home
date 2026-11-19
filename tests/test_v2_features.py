@@ -365,3 +365,7 @@ def test_classify_lan_host_brands_and_models():
 
     assert asset_picture_url("freebox_repeater_wifi7.png") == "/api/domolink_freebox_home/assets/freebox_repeater_wifi7.png"
     assert resolve_repeater_model({"has_6g": True}) == ("Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png")
+
+    assert classify_lan_host({"primary_name": "Apple-TV-Salon"}).picture_asset == "freebox_player_appletv.png"
+    assert classify_lan_host({"primary_name": "Répéteur-Bureau"}, system={"board_name": "fbxgw9r"}).picture_asset == "freebox_repeater_wifi7.png"
+    assert classify_lan_host({"primary_name": "iPhone-de-JF"}).picture_asset is None
