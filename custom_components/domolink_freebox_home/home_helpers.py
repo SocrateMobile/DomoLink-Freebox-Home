@@ -9,6 +9,14 @@ from homeassistant.helpers.device_registry import DeviceInfo
 
 from .const import DOMAIN, MANUFACTURER
 
+ASSETS_URL_BASE = "/api/domolink_freebox_home/assets"
+
+
+def asset_picture_url(filename: str) -> str:
+    """Return the Home Assistant static URL for a bundled asset image."""
+    return f"{ASSETS_URL_BASE}/{filename}"
+
+
 _REV_RE = re.compile(r"\((r\d+)\)", re.IGNORECASE)
 _VER_RE = re.compile(r"\b(v\d+)\b", re.IGNORECASE)
 
@@ -129,15 +137,20 @@ def resolve_repeater_model(
     board/model names, and Wi-Fi band capabilities (6GHz / 802.11be vs 802.11ac).
     """
     if isinstance(repeater, dict) and repeater:
+        if repeater.get("has_6g") is True:
+            return "Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png"
         sig_parts = [
             str(repeater.get("model") or ""),
             str(repeater.get("board_name") or ""),
+            str(repeater.get("hw_version") or ""),
             str(repeater.get("name") or ""),
             str(repeater.get("wifi_type") or ""),
+            str(repeater.get("wifi_bands") or ""),
             str(repeater.get("phy_type") or ""),
             str(repeater.get("type") or ""),
             str(repeater.get("capabilities") or ""),
             str(repeater.get("bands") or ""),
+            str(repeater.get("backhaul") or ""),
         ]
         sig = " ".join(sig_parts).lower()
         if any(

@@ -103,9 +103,11 @@ _SIGNATURE_RULES: tuple[tuple[tuple[str, ...], str, str, str, str], ...] = (
     (("philips tv", "ambilight", "tp vision"), "Philips", "Philips TV", "TV / Streaming", "mdi:television"),
     (("panasonic", "viera"), "Panasonic", "Panasonic TV", "TV / Streaming", "mdi:television"),
     (("nvidia shield", "shield-android", "shieldtv"), "NVIDIA", "NVIDIA Shield TV", "TV / Streaming", "mdi:television-box"),
-    (("chromecast", "google-tv", "google tv"), "Google", "Chromecast / Google TV", "TV / Streaming", "mdi:cast"),
+    (("google-tv", "google tv", "googletv", "google tv streamer", "chromecast", "sabrina", "boreal", "androidtv", "android-tv"), "Google", "Google TV / Chromecast", "TV / Streaming", "mdi:television-box"),
+    (("mi-box", "mi box", "mibox", "xiaomi tv box", "xiaomi-tv-box", "mi tv stick", "mi-tv-stick", "mitv-stick", "mdz-22", "mdz-24", "mdz-27", "mdz-28"), "Xiaomi", "Xiaomi TV Box / Stick", "TV / Streaming", "mdi:television-box"),
+    (("xiaomi tv", "xiaomi-tv", "mi tv", "mi-tv", "mitv", "redmi tv", "redmi-tv", "xiaomi a pro", "xiaomi s mini", "xiaomi q2", "xiaomi p1", "xiaomi f2"), "Xiaomi", "Xiaomi Smart TV", "TV / Streaming", "mdi:television"),
     (("firetv", "fire-tv", "fire tv", "aftm", "aftk"), "Amazon", "Fire TV", "TV / Streaming", "mdi:television-box"),
-    (("roku", "formuler", "zidoo", "mi-box", "mibox"), "Box TV", "Lecteur Streaming", "TV / Streaming", "mdi:television-box"),
+    (("roku", "formuler", "zidoo"), "Box TV", "Lecteur Streaming", "TV / Streaming", "mdi:television-box"),
 
     # --- Smartphones, Tablettes & Constructeurs généralistes ---
     (("galaxy-tab", "galaxy tab", "sm-t", "sm-x"), "Samsung", "Galaxy Tab", "Tablette", "mdi:tablet"),
