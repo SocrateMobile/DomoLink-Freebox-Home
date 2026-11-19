@@ -56,6 +56,10 @@ async def async_setup_entry(
         if isinstance(vpn, dict) and vpn.get("name"):
             entities.append(FreeboxVpnSwitch(coordinator, vpn))
 
+    for vm in coordinator.data.vms:
+        if isinstance(vm, dict) and vm.get("id") is not None:
+            entities.append(FreeboxVmSwitch(coordinator, vm))
+
     for node_id, node in coordinator.data.nodes.items():
         if str(node.get("category", "")).lower() in ("plug", "switch", "relay"):
             slot = find_endpoint(node, name="switch", ep_type="slot") or find_endpoint(
@@ -267,6 +271,56 @@ class FreeboxVpnSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEntity):
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self.coordinator.client.async_set_vpn_server_enabled(self._vpn_id, False)
+        await self.coordinator.async_request_refresh()
+
+
+class FreeboxVmSwitch(CoordinatorEntity[FreeboxHomeCoordinator], SwitchEntity):
+    """Switch to start/stop a Freebox OS Virtual Machine."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:server"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, vm: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._vm_id = str(vm["id"])
+        name = str(vm.get("name") or f"VM {self._vm_id}")
+        self._attr_unique_id = f"vm_{self._vm_id}"
+        self._attr_name = f"08 · Machines Virtuelles · VM {name}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    def _current_vm(self) -> dict[str, Any] | None:
+        for vm in self.coordinator.data.vms:
+            if isinstance(vm, dict) and str(vm.get("id")) == self._vm_id:
+                return vm
+        return None
+
+    @property
+    def is_on(self) -> bool | None:
+        vm = self._current_vm()
+        if not vm:
+            return None
+        return str(vm.get("status", "")).lower() == "running"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        vm = self._current_vm()
+        if not vm:
+            return {}
+        return {
+            "status": vm.get("status"),
+            "vcpus": vm.get("vcpus"),
+            "memory": vm.get("memory"),
+            "os": vm.get("os"),
+        }
+
+    async def async_turn_on(self, **kwargs: Any) -> None:
+        await self.coordinator.client.async_start_vm(self._vm_id)
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_off(self, **kwargs: Any) -> None:
+        await self.coordinator.client.async_stop_vm(self._vm_id)
         await self.coordinator.async_request_refresh()
 
 

@@ -43,6 +43,15 @@ class FreeboxHomeData:
     lcd: dict[str, Any] = field(default_factory=dict)
     standby_status: dict[str, Any] = field(default_factory=dict)
     update_status: dict[str, Any] = field(default_factory=dict)
+    ftth: dict[str, Any] = field(default_factory=dict)
+    disks: list[dict[str, Any]] = field(default_factory=list)
+    raids: list[dict[str, Any]] = field(default_factory=list)
+    freeplugs: list[dict[str, Any]] = field(default_factory=list)
+    vms: list[dict[str, Any]] = field(default_factory=list)
+    download_stats: dict[str, Any] = field(default_factory=dict)
+    phones: list[dict[str, Any]] = field(default_factory=list)
+    pvr_programmed: list[dict[str, Any]] = field(default_factory=list)
+    pvr_finished: list[dict[str, Any]] = field(default_factory=list)
 
 
 class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
@@ -89,6 +98,15 @@ class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
                 lcd,
                 standby_status,
                 update_status,
+                ftth,
+                disks,
+                raids,
+                freeplugs,
+                vms,
+                download_stats,
+                phones,
+                pvr_programmed,
+                pvr_finished,
             ) = await asyncio.gather(
                 self.client.async_get_lte_aggregation(),
                 self.client.async_get_repeaters(),
@@ -109,6 +127,15 @@ class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
                 self.client.async_get_lcd_config(),
                 self.client.async_get_standby_status(),
                 self.client.async_get_update_status(),
+                self.client.async_get_ftth(),
+                self.client.async_get_storage_disks(),
+                self.client.async_get_storage_raids(),
+                self.client.async_get_freeplugs(),
+                self.client.async_get_vms(),
+                self.client.async_get_download_stats(),
+                self.client.async_get_phones(),
+                self.client.async_get_pvr_programmed(),
+                self.client.async_get_pvr_finished(),
             )
             nodes_map: dict[int, dict[str, Any]] = {}
             for node in nodes_list:
@@ -146,6 +173,15 @@ class FreeboxHomeCoordinator(DataUpdateCoordinator[FreeboxHomeData]):
                 lcd=lcd,
                 standby_status=standby_status,
                 update_status=update_status,
+                ftth=ftth,
+                disks=disks,
+                raids=raids,
+                freeplugs=freeplugs,
+                vms=vms,
+                download_stats=download_stats,
+                phones=phones,
+                pvr_programmed=pvr_programmed,
+                pvr_finished=pvr_finished,
             )
         except FreeboxAuthError as err:
             raise ConfigEntryAuthFailed(f"Freebox auth error: {err}") from err

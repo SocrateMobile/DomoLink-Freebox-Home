@@ -39,6 +39,15 @@ async def async_setup_entry(
     coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[BinarySensorEntity] = [FreeboxWanBinarySensor(coordinator)]
 
+    if coordinator.data.ftth:
+        entities.append(FreeboxFtthLinkBinarySensor(coordinator))
+
+    for net in coordinator.data.freeplugs:
+        if isinstance(net, dict):
+            for member in net.get("members") or []:
+                if isinstance(member, dict) and member.get("id"):
+                    entities.append(FreeboxFreeplugBinarySensor(coordinator, member))
+
     for rep in coordinator.data.repeaters:
         if isinstance(rep, dict) and rep.get("id") is not None:
             entities.append(FreeboxRepeaterBinarySensor(coordinator, rep))
@@ -78,6 +87,86 @@ class FreeboxWanBinarySensor(CoordinatorEntity[FreeboxHomeCoordinator], BinarySe
     @property
     def is_on(self) -> bool:
         return str(self.coordinator.data.connection.get("state", "")).lower() == "up"
+
+
+class FreeboxFtthLinkBinarySensor(
+    CoordinatorEntity[FreeboxHomeCoordinator], BinarySensorEntity
+):
+    """FTTH SFP optical link connectivity binary sensor."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_name = "01 · Réseau · Lien Fibre SFP"
+    _attr_icon = "mdi:fiber-optic"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.client.host}_ftth_link"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self.coordinator.data.ftth.get("link"))
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        ftth = self.coordinator.data.ftth
+        return {
+            "sfp_present": ftth.get("sfp_present"),
+            "sfp_alim_ok": ftth.get("sfp_alim_ok"),
+            "sfp_has_signal": ftth.get("sfp_has_signal"),
+            "sfp_model": ftth.get("sfp_model"),
+            "sfp_vendor": ftth.get("sfp_vendor"),
+            "link_type": ftth.get("link_type"),
+        }
+
+
+class FreeboxFreeplugBinarySensor(
+    CoordinatorEntity[FreeboxHomeCoordinator], BinarySensorEntity
+):
+    """FreePlug CPL member network connectivity binary sensor."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_icon = "mdi:power-plug"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, member: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._fp_id = str(member["id"])
+        self._attr_unique_id = f"freeplug_{self._fp_id}"
+        self._attr_name = f"02 · Wi-Fi · FreePlug {self._fp_id}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    def _current_member(self) -> dict[str, Any] | None:
+        for net in self.coordinator.data.freeplugs:
+            if isinstance(net, dict):
+                for m in net.get("members") or []:
+                    if isinstance(m, dict) and str(m.get("id")) == self._fp_id:
+                        return m
+        return None
+
+    @property
+    def is_on(self) -> bool:
+        m = self._current_member()
+        return bool(m.get("has_network")) if m else False
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        m = self._current_member()
+        if not m:
+            return {}
+        return {
+            "net_role": m.get("net_role"),
+            "local": m.get("local"),
+            "eth_port_status": m.get("eth_port_status"),
+            "rx_rate": m.get("rx_rate"),
+            "tx_rate": m.get("tx_rate"),
+            "model": m.get("model"),
+        }
 
 
 class FreeboxRepeaterBinarySensor(

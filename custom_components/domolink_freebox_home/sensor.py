@@ -13,7 +13,13 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfDataRate, UnitOfInformation, UnitOfTemperature
+from homeassistant.const import (
+    PERCENTAGE,
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+    UnitOfDataRate,
+    UnitOfInformation,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -21,6 +27,16 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator, FreeboxHomeData
 from .home_helpers import box_device_info, node_device_info
+
+
+def _freeplug_members(data: FreeboxHomeData) -> list[dict[str, Any]]:
+    members: list[dict[str, Any]] = []
+    for net in data.freeplugs:
+        if isinstance(net, dict):
+            for m in net.get("members") or []:
+                if isinstance(m, dict):
+                    members.append(m)
+    return members
 
 
 def _bytes_to_gb(raw: Any) -> float | None:
@@ -117,6 +133,13 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         value_fn=lambda d: len(d.repeaters),
     ),
     FreeboxBoxSensorDescription(
+        key="freeplug_count",
+        name="02 · Wi-Fi · Nombre de FreePlugs",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:power-plug",
+        value_fn=lambda d: len(_freeplug_members(d)),
+    ),
+    FreeboxBoxSensorDescription(
         key="uptime",
         name="03 · Système · Temps de fonctionnement",
         icon="mdi:clock-outline",
@@ -145,6 +168,13 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         value_fn=lambda d: len(d.voicemails),
     ),
     FreeboxBoxSensorDescription(
+        key="phone_count",
+        name="04 · Téléphonie · Combinés / Lignes DECT",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:phone-classic",
+        value_fn=lambda d: len(d.phones),
+    ),
+    FreeboxBoxSensorDescription(
         key="vpn_connections",
         name="05 · VPN · Clients connectés",
         state_class=SensorStateClass.MEASUREMENT,
@@ -157,6 +187,58 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:television-box",
         value_fn=lambda d: len(d.players),
+    ),
+    FreeboxBoxSensorDescription(
+        key="pvr_programmed_count",
+        name="07 · TV / Players · Enregistrements programmés",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:record-rec",
+        value_fn=lambda d: len(d.pvr_programmed),
+    ),
+    FreeboxBoxSensorDescription(
+        key="pvr_finished_count",
+        name="07 · TV / Players · Enregistrements terminés",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:filmstrip",
+        value_fn=lambda d: len(d.pvr_finished),
+    ),
+    FreeboxBoxSensorDescription(
+        key="vm_count",
+        name="08 · Machines Virtuelles · Nombre de VMs",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:server",
+        value_fn=lambda d: len(d.vms),
+    ),
+    FreeboxBoxSensorDescription(
+        key="downloads_active",
+        name="09 · Téléchargements · Tâches actives",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:download-multiple",
+        value_fn=lambda d: d.download_stats.get("nb_tasks_active", 0)
+        if d.download_stats
+        else 0,
+    ),
+    FreeboxBoxSensorDescription(
+        key="downloads_rx_rate",
+        name="09 · Téléchargements · Débit téléchargement",
+        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:download",
+        value_fn=lambda d: round(float(d.download_stats["rx_rate"]) * 8.0 / 1_000_000.0, 2)
+        if d.download_stats.get("rx_rate") is not None
+        else 0.0,
+    ),
+    FreeboxBoxSensorDescription(
+        key="downloads_tx_rate",
+        name="09 · Téléchargements · Débit envoi (Seed)",
+        device_class=SensorDeviceClass.DATA_RATE,
+        native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:upload",
+        value_fn=lambda d: round(float(d.download_stats["tx_rate"]) * 8.0 / 1_000_000.0, 2)
+        if d.download_stats.get("tx_rate") is not None
+        else 0.0,
     ),
 )
 
@@ -177,6 +259,19 @@ async def async_setup_entry(
     for part in coordinator.data.partitions:
         if isinstance(part, dict) and part.get("id") is not None and part.get("total_bytes"):
             entities.append(FreeboxPartitionFreeSensor(coordinator, part))
+
+    if coordinator.data.ftth.get("sfp_pwr_rx") is not None:
+        entities.append(FreeboxFtthPowerSensor(coordinator, "sfp_pwr_rx", "01 · Réseau · Signal Fibre Rx"))
+    if coordinator.data.ftth.get("sfp_pwr_tx") is not None:
+        entities.append(FreeboxFtthPowerSensor(coordinator, "sfp_pwr_tx", "01 · Réseau · Signal Fibre Tx"))
+
+    for disk in coordinator.data.disks:
+        if isinstance(disk, dict) and disk.get("id") is not None and disk.get("temp") is not None:
+            entities.append(FreeboxDiskTempSensor(coordinator, disk))
+
+    for raid in coordinator.data.raids:
+        if isinstance(raid, dict) and raid.get("id") is not None:
+            entities.append(FreeboxRaidSensor(coordinator, raid))
 
     for hw_sensor in coordinator.data.system.get("sensors") or []:
         if isinstance(hw_sensor, dict) and hw_sensor.get("id"):
@@ -384,3 +479,97 @@ class FreeboxHomeNodeSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEnt
             if isinstance(ep, dict) and int(ep.get("id", -1)) == self._ep_id:
                 return ep.get("value")
         return None
+
+
+class FreeboxFtthPowerSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity):
+    """FTTH SFP optical signal power sensor (Rx / Tx in dBm)."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
+    _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:fiber-optic"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, field: str, label: str) -> None:
+        super().__init__(coordinator)
+        self._field = field
+        self._attr_unique_id = f"{coordinator.client.host}_{field}"
+        self._attr_name = label
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        raw = self.coordinator.data.ftth.get(self._field)
+        if raw is None:
+            return None
+        return round(float(raw) / 100.0, 2)
+
+
+class FreeboxDiskTempSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity):
+    """Physical disk / NVMe SSD temperature sensor from GET storage/disk/."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = SensorDeviceClass.TEMPERATURE
+    _attr_native_unit_of_measurement = UnitOfTemperature.CELSIUS
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_icon = "mdi:harddisk"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, disk: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._disk_id = str(disk["id"])
+        model = str(disk.get("model") or f"Disque {self._disk_id}").strip()
+        self._attr_unique_id = f"{coordinator.client.host}_disk_temp_{self._disk_id}"
+        self._attr_name = f"03 · Système · Température Disque {model}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        for disk in self.coordinator.data.disks:
+            if isinstance(disk, dict) and str(disk.get("id")) == self._disk_id:
+                val = disk.get("temp")
+                return float(val) if val is not None else None
+        return None
+
+
+class FreeboxRaidSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity):
+    """RAID array health/state sensor from GET storage/raid/."""
+
+    _attr_has_entity_name = True
+    _attr_icon = "mdi:nas"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, raid: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self._raid_id = str(raid["id"])
+        name = str(raid.get("name") or f"RAID {self._raid_id}")
+        self._attr_unique_id = f"{coordinator.client.host}_raid_{self._raid_id}"
+        self._attr_name = f"03 · Système · RAID {name}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    def _current_raid(self) -> dict[str, Any] | None:
+        for raid in self.coordinator.data.raids:
+            if isinstance(raid, dict) and str(raid.get("id")) == self._raid_id:
+                return raid
+        return None
+
+    @property
+    def native_value(self) -> str | None:
+        raid = self._current_raid()
+        return str(raid.get("state")) if raid and raid.get("state") is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        raid = self._current_raid()
+        if not raid:
+            return {}
+        return {
+            "level": raid.get("level"),
+            "degraded": raid.get("degraded"),
+            "sync_progress": raid.get("sync_progress"),
+            "total_size": raid.get("total_size"),
+        }

@@ -465,3 +465,70 @@ class FreeboxOsClient:
         """Fetch Freebox firmware update status."""
         res = await self._async_get_optional("update/", {})
         return res if isinstance(res, dict) else {}
+
+    # --- FTTH SFP, Disks/RAID, FreePlugs, VMs, Downloads, Telephony DECT & PVR ---
+
+    async def async_get_ftth(self) -> dict[str, Any]:
+        """Fetch FTTH optical SFP status and Rx/Tx dBm power levels."""
+        res = await self._async_get_optional("connection/ftth/", {})
+        return res if isinstance(res, dict) else {}
+
+    async def async_get_storage_disks(self) -> list[dict[str, Any]]:
+        """Fetch physical disks (NVMe/SATA/USB) and temperatures."""
+        res = await self._async_get_optional("storage/disk/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_storage_raids(self) -> list[dict[str, Any]]:
+        """Fetch RAID arrays status (Delta / Pro)."""
+        res = await self._async_get_optional("storage/raid/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_freeplugs(self) -> list[dict[str, Any]]:
+        """Fetch FreePlug CPL networks and member nodes."""
+        res = await self._async_get_optional("freeplug/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_vms(self) -> list[dict[str, Any]]:
+        """Fetch Freebox OS Virtual Machines (Delta / Ultra / Pro)."""
+        res = await self._async_get_optional("vm/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_start_vm(self, vm_id: int | str) -> bool:
+        """Start a Freebox Virtual Machine."""
+        await self._request("POST", f"vm/{vm_id}/start")
+        return True
+
+    async def async_stop_vm(self, vm_id: int | str) -> bool:
+        """Stop a Freebox Virtual Machine."""
+        await self._request("POST", f"vm/{vm_id}/stop")
+        return True
+
+    async def async_restart_vm(self, vm_id: int | str) -> bool:
+        """Restart a Freebox Virtual Machine."""
+        await self._request("POST", f"vm/{vm_id}/restart")
+        return True
+
+    async def async_get_download_stats(self) -> dict[str, Any]:
+        """Fetch Freebox Seedbox / Download Manager statistics."""
+        res = await self._async_get_optional("downloads/stats", {})
+        return res if isinstance(res, dict) else {}
+
+    async def async_get_phones(self) -> list[dict[str, Any]]:
+        """Fetch fixed phone lines and paired DECT handsets."""
+        res = await self._async_get_optional("phone/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_ring_phone(self) -> bool:
+        """Trigger a test ring on the Freebox fixed phone / DECT handsets."""
+        await self._request("POST", "phone/fxs_ring/")
+        return True
+
+    async def async_get_pvr_programmed(self) -> list[dict[str, Any]]:
+        """Fetch programmed TV recordings (PVR / OQEE)."""
+        res = await self._async_get_optional("pvr/programmed/", [])
+        return res if isinstance(res, list) else []
+
+    async def async_get_pvr_finished(self) -> list[dict[str, Any]]:
+        """Fetch finished TV recordings (PVR / OQEE)."""
+        res = await self._async_get_optional("pvr/finished/", [])
+        return res if isinstance(res, list) else []
