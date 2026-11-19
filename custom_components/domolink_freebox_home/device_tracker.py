@@ -13,7 +13,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import host_type_icon, wifi_clients_device_info
+from .device_signatures import classify_lan_host
+from .home_helpers import wifi_clients_device_info
 
 _MAC_RE = re.compile(r"^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$")
 
@@ -125,7 +126,7 @@ class FreeboxLanDeviceTracker(
     @property
     def icon(self) -> str:
         host = self._find_host() or {}
-        return host_type_icon(host.get("host_type"), self.is_connected)
+        return classify_lan_host(host, self.is_connected).icon
 
     @property
     def hostname(self) -> str | None:
@@ -155,8 +156,12 @@ class FreeboxLanDeviceTracker(
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         host = self._find_host() or {}
+        info = classify_lan_host(host, self.is_connected)
         return {
             "status_indicator": "🟢 En ligne" if self.is_connected else "🟠 Hors ligne",
+            "brand": info.brand,
+            "device_model": info.model,
+            "category": info.category,
             "mac_address": self._mac_upper,
             "ip_address": self.ip_address,
             "vendor": host.get("vendor_name"),
