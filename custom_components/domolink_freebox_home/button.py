@@ -10,7 +10,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import box_device_info
+from .home_helpers import box_device_info, resolve_player_model
 
 
 async def async_setup_entry(
@@ -18,12 +18,13 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up Freebox Server, WPS, Call-log, Repeater, and Player buttons."""
+    """Set up Freebox Server, WPS, Telephony, Repeater, Player, and VM buttons."""
     coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
     entities: list[ButtonEntity] = [
         FreeboxRebootButton(coordinator),
         FreeboxWpsButton(coordinator),
         FreeboxMarkCallsReadButton(coordinator),
+        FreeboxPhoneRingButton(coordinator),
     ]
     for rep in coordinator.data.repeaters:
         if isinstance(rep, dict) and rep.get("id") is not None:
@@ -31,6 +32,9 @@ async def async_setup_entry(
     for player in coordinator.data.players:
         if isinstance(player, dict) and player.get("id") is not None:
             entities.append(FreeboxPlayerRebootButton(coordinator, player))
+    for vm in coordinator.data.vms:
+        if isinstance(vm, dict) and vm.get("id") is not None:
+            entities.append(FreeboxVmRestartButton(coordinator, vm))
     async_add_entities(entities)
 
 
@@ -120,7 +124,8 @@ class FreeboxPlayerRebootButton(CoordinatorEntity[FreeboxHomeCoordinator], Butto
         super().__init__(coordinator)
         self._player_id = str(player["id"])
         self._attr_unique_id = f"player_{self._player_id}_reboot"
-        self._attr_name = f"03 · Système · Redémarrer {player.get('device_name') or f'Player {self._player_id}'}"
+        model_label, _ = resolve_player_model(player)
+        self._attr_name = f"07 · TV / Players · Redémarrer {model_label}"
         self._attr_icon = "mdi:television-box"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
@@ -128,3 +133,42 @@ class FreeboxPlayerRebootButton(CoordinatorEntity[FreeboxHomeCoordinator], Butto
 
     async def async_press(self) -> None:
         await self.coordinator.client.async_reboot_player(self._player_id)
+
+
+class FreeboxPhoneRingButton(CoordinatorEntity[FreeboxHomeCoordinator], ButtonEntity):
+    """Button to trigger a test ring on the Freebox fixed phone / DECT handsets."""
+
+    _attr_has_entity_name = True
+    _attr_name = "04 · Téléphonie · Faire sonner le téléphone"
+    _attr_icon = "mdi:phone-ring"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.client.host}_phone_ring"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    async def async_press(self) -> None:
+        await self.coordinator.client.async_ring_phone()
+
+
+class FreeboxVmRestartButton(CoordinatorEntity[FreeboxHomeCoordinator], ButtonEntity):
+    """Button to restart a Freebox OS Virtual Machine."""
+
+    _attr_has_entity_name = True
+    _attr_device_class = ButtonDeviceClass.RESTART
+    _attr_icon = "mdi:restart"
+
+    def __init__(self, coordinator: FreeboxHomeCoordinator, vm: dict) -> None:
+        super().__init__(coordinator)
+        self._vm_id = str(vm["id"])
+        name = str(vm.get("name") or f"VM {self._vm_id}")
+        self._attr_unique_id = f"vm_{self._vm_id}_restart"
+        self._attr_name = f"08 · Machines Virtuelles · Redémarrer VM {name}"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+
+    async def async_press(self) -> None:
+        await self.coordinator.client.async_restart_vm(self._vm_id)

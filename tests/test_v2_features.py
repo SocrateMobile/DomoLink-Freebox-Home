@@ -288,3 +288,34 @@ def test_lan_status_dots_icons_and_sorting():
 
     wifi_dev = wifi_clients_device_info("mafreebox.freebox.fr", {"mac": "AA:BB:CC:DD:EE:FF"})
     assert wifi_dev["name"] == "Wi-Fi"
+
+
+def test_v26_ftth_freeplug_vm_seedbox_phone_pvr_calls():
+    session = FakeSession([
+        FakeResponse({"success": True, "result": {"link": True, "sfp_pwr_rx": -1850, "sfp_pwr_tx": 230}}),
+        FakeResponse({"success": True, "result": [{"id": "fp1", "members": [{"id": "AA:BB", "has_network": True}]}]}),
+        FakeResponse({"success": True, "result": [{"id": 1, "name": "Debian", "status": "running"}]}),
+        FakeResponse({"success": True, "result": {}}),
+        FakeResponse({"success": True, "result": {"nb_tasks_active": 2, "rx_rate": 1250000, "tx_rate": 250000}}),
+        FakeResponse({"success": True, "result": [{"id": 1, "type": "dect", "name": "Salon"}]}),
+        FakeResponse({"success": True, "result": {}}),
+        FakeResponse({"success": True, "result": [{"id": 10}]}),
+        FakeResponse({"success": True, "result": [{"id": 11}, {"id": 12}]}),
+    ])
+    client = FreeboxOsClient(session, host="mafreebox.freebox.fr", app_token="tok")
+    client.session_token = "sess"
+
+    ftth = asyncio.run(client.async_get_ftth())
+    assert ftth["link"] is True and ftth["sfp_pwr_rx"] == -1850
+    fps = asyncio.run(client.async_get_freeplugs())
+    assert len(fps[0]["members"]) == 1
+    vms = asyncio.run(client.async_get_vms())
+    assert vms[0]["name"] == "Debian"
+    assert asyncio.run(client.async_restart_vm(1)) is True
+    dl = asyncio.run(client.async_get_download_stats())
+    assert dl["nb_tasks_active"] == 2
+    phones = asyncio.run(client.async_get_phones())
+    assert len(phones) == 1
+    assert asyncio.run(client.async_ring_phone()) is True
+    assert len(asyncio.run(client.async_get_pvr_programmed())) == 1
+    assert len(asyncio.run(client.async_get_pvr_finished())) == 2
