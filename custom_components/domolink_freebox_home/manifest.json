@@ -5,6 +5,9 @@
     "@SocrateMobile"
   ],
   "config_flow": true,
+  "dependencies": [
+    "http"
+  ],
   "documentation": "https://github.com/SocrateMobile/DomoLink-Freebox-Home",
   "integration_type": "hub",
   "iot_class": "local_polling",
