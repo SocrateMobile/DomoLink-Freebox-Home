@@ -15,7 +15,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import box_device_info, node_device_info
+from .home_helpers import box_device_info, node_device_info, resolve_repeater_model
 
 CATEGORY_DEVICE_CLASS: dict[str, BinarySensorDeviceClass] = {
     "dws": BinarySensorDeviceClass.DOOR,
@@ -83,7 +83,9 @@ class FreeboxRepeaterBinarySensor(
         super().__init__(coordinator)
         self._rep_id = str(rep["id"])
         self._attr_unique_id = f"repeater_{self._rep_id}_conn"
-        self._attr_name = f"02 · Wi-Fi · Répéteur {rep.get('name') or self._rep_id}"
+        rep_model, _ = resolve_repeater_model(rep, coordinator.data.system)
+        gen = "Wi-Fi 7" if "wi-fi 7" in rep_model.lower() else "Wi-Fi 5"
+        self._attr_name = f"02 · Wi-Fi · Répéteur {rep.get('name') or self._rep_id} ({gen})"
         self._attr_icon = "mdi:wifi-star"
         self._attr_device_info = box_device_info(
             coordinator.client.host, coordinator.data.system
