@@ -1,0 +1,117 @@
+"""Image platform for DomoLink Freebox Home (Freebox & Wi-Fi Repeater photos)."""
+
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+from homeassistant.components.image import ImageEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from .const import DOMAIN
+from .coordinator import FreeboxHomeCoordinator
+from .home_helpers import box_device_info, resolve_freebox_model
+
+ASSETS_DIR = Path(__file__).parent / "assets"
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up Freebox box photo and Wi-Fi repeater photo image entities."""
+    coordinator: FreeboxHomeCoordinator = hass.data[DOMAIN][entry.entry_id]
+    entities: list[ImageEntity] = [
+        FreeboxBoxImageEntity(hass, coordinator),
+        FreeboxRepeaterImageEntity(hass, coordinator),
+    ]
+    async_add_entities(entities)
+
+
+class FreeboxBoxImageEntity(CoordinatorEntity[FreeboxHomeCoordinator], ImageEntity):
+    """Image entity displaying the studio photo of the detected Freebox model."""
+
+    _attr_has_entity_name = True
+    _attr_content_type = "image/png"
+    _attr_name = "00 · Aperçu · Photo de la Freebox"
+    _attr_icon = "mdi:router-wireless"
+
+    def __init__(self, hass: HomeAssistant, coordinator: FreeboxHomeCoordinator) -> None:
+        CoordinatorEntity.__init__(self, coordinator)
+        ImageEntity.__init__(self, hass)
+        self._attr_unique_id = f"{coordinator.client.host}_box_photo"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+        self._attr_image_last_updated = datetime.now(timezone.utc)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        sys_data = self.coordinator.data.system
+        display_name, commercial, asset = resolve_freebox_model(sys_data)
+        model_info = sys_data.get("model_info") if isinstance(sys_data.get("model_info"), dict) else {}
+        return {
+            "display_name": display_name,
+            "commercial_name": commercial,
+            "board_name": sys_data.get("board_name"),
+            "box_flavor": sys_data.get("box_flavor"),
+            "model_name": model_info.get("name"),
+            "firmware_version": sys_data.get("firmware_version"),
+            "asset": asset,
+        }
+
+    async def async_image(self) -> bytes | None:
+        _, _, asset = resolve_freebox_model(self.coordinator.data.system)
+        img_path = ASSETS_DIR / asset
+        if not img_path.exists():
+            img_path = ASSETS_DIR / "freebox_ultra.png"
+        if not img_path.exists():
+            return None
+        return await self.hass.async_add_executor_job(img_path.read_bytes)
+
+
+class FreeboxRepeaterImageEntity(CoordinatorEntity[FreeboxHomeCoordinator], ImageEntity):
+    """Image entity displaying the Freebox Wi-Fi Repeater photo and count metadata."""
+
+    _attr_has_entity_name = True
+    _attr_content_type = "image/png"
+    _attr_name = "02 · Wi-Fi · Photo Répéteur Wi-Fi"
+    _attr_icon = "mdi:wifi-star"
+
+    def __init__(self, hass: HomeAssistant, coordinator: FreeboxHomeCoordinator) -> None:
+        CoordinatorEntity.__init__(self, coordinator)
+        ImageEntity.__init__(self, hass)
+        self._attr_unique_id = f"{coordinator.client.host}_repeater_photo"
+        self._attr_device_info = box_device_info(
+            coordinator.client.host, coordinator.data.system
+        )
+        self._attr_image_last_updated = datetime.now(timezone.utc)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        reps = [r for r in self.coordinator.data.repeaters if isinstance(r, dict)]
+        connected = sum(1 for r in reps if str(r.get("connection", "")).lower() == "connected")
+        return {
+            "repeater_count": len(reps),
+            "connected_count": connected,
+            "repeaters": [
+                {
+                    "id": r.get("id"),
+                    "name": r.get("name"),
+                    "connection": r.get("connection"),
+                    "model": r.get("model"),
+                }
+                for r in reps
+            ],
+        }
+
+    async def async_image(self) -> bytes | None:
+        img_path = ASSETS_DIR / "freebox_repeater.png"
+        if not img_path.exists():
+            return None
+        return await self.hass.async_add_executor_job(img_path.read_bytes)

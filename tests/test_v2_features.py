@@ -21,6 +21,7 @@ ha_const.Platform = types.SimpleNamespace(
     LIGHT="light",
     ALARM_CONTROL_PANEL="alarm_control_panel",
     CAMERA="camera",
+    IMAGE="image",
     BUTTON="button",
     DEVICE_TRACKER="device_tracker",
     NUMBER="number",
@@ -197,7 +198,10 @@ def test_resolve_host_name_prefers_friendly_name_over_mac():
 
 
 def test_box_device_info_uses_pretty_name():
-    from custom_components.domolink_freebox_home.home_helpers import box_device_info
+    from custom_components.domolink_freebox_home.home_helpers import (
+        box_device_info,
+        resolve_freebox_model,
+    )
 
     info = box_device_info(
         "mafreebox.freebox.fr",
@@ -206,12 +210,34 @@ def test_box_device_info_uses_pretty_name():
             "box_flavor": "full",
             "board_name": "fbxgw9r",
             "firmware_version": "4.8.15",
-            "model_info": {"pretty_name": "Freebox Ultra"},
+            "model_info": {"name": "fbxgw9-r1/full", "pretty_name": "Freebox v9 (r1)"},
         },
     )
-    assert info["name"] == "Freebox Ultra"
-    assert info["model"] == "Freebox Ultra"
+    assert info["name"] == "Freebox Ultra v9 (r1)"
+    assert info["model"] == "Freebox Ultra v9 (r1)"
     assert info["sw_version"] == "4.8.15"
+
+    cases = [
+        ({"board_name": "fbxgw9r", "box_flavor": "full", "model_info": {"name": "fbxgw9-r1/full", "pretty_name": "Freebox v9 (r1)"}}, "Freebox Ultra v9 (r1)", "freebox_ultra.png"),
+        ({"board_name": "fbxgw9r", "box_flavor": "light", "model_info": {"name": "fbxgw9-r1/light", "pretty_name": "Freebox v9 (r1)"}}, "Freebox Ultra Essentiel v9 (r1)", "freebox_ultra.png"),
+        ({"board_name": "fbxgw8r", "box_flavor": "full", "model_info": {"name": "fbxgw8-r1/full", "pretty_name": "Freebox v8 (r1)"}}, "Freebox Pop v8 (r1)", "freebox_pop.png"),
+        ({"board_name": "fbxgw8r", "box_flavor": "light", "model_info": {"name": "fbxgw8-r1/light", "pretty_name": "Freebox v8 (r1)"}}, "Freebox Pop S v8 (r1)", "freebox_pop.png"),
+        ({"board_name": "fbxgw7r", "box_flavor": "full", "model_info": {"name": "fbxgw7-r1/full", "pretty_name": "Freebox v7 (r1)"}}, "Freebox Delta v7 (r1)", "freebox_delta.png"),
+        ({"board_name": "fbxgw7r", "box_flavor": "light", "model_info": {"name": "fbxgw7-r1/light", "pretty_name": "Freebox v7 (r1)"}}, "Freebox Delta S v7 (r1)", "freebox_delta.png"),
+        ({"board_name": "fbxgw2r", "box_flavor": "full", "model_info": {"name": "fbxgw-r2/full", "pretty_name": "Freebox Server (r2)"}}, "Freebox Révolution v6 (r2)", "freebox_revolution.png"),
+        ({"board_name": "fbxgw1r", "box_flavor": "mini", "model_info": {"name": "fbxgw-r1/mini", "pretty_name": "Freebox Mini (r1)"}}, "Freebox Mini 4K (r1)", "freebox_mini_4k.png"),
+        ({"board_name": "fbxgw1r", "box_flavor": "one", "model_info": {"name": "fbxgw-r1/one", "pretty_name": "Freebox One (r1)"}}, "Freebox One (r1)", "freebox_mini_4k.png"),
+        ({"board_name": "fbxgw5", "model_info": {"name": "freebox_crystal", "pretty_name": "Freebox Crystal"}}, "Freebox Crystal", "freebox_mini_4k.png"),
+        ({"board_name": "fbx5g", "model_info": {"name": "fbx5g", "pretty_name": "Box 5G"}}, "Freebox 5G", "freebox_5g.png"),
+        ({"board_name": "fbx4g", "model_info": {"name": "fbx4g", "pretty_name": "Box 4G+"}}, "Freebox 4G+", "freebox_5g.png"),
+    ]
+    assets_dir = ROOT / "custom_components" / "domolink_freebox_home" / "assets"
+    for payload, expected_name, expected_asset in cases:
+        display, _commercial, asset = resolve_freebox_model(payload)
+        assert display == expected_name
+        assert asset == expected_asset
+        assert (assets_dir / asset).is_file()
+    assert (assets_dir / "freebox_repeater.png").is_file()
 
 
 def test_lan_status_dots_icons_and_sorting():

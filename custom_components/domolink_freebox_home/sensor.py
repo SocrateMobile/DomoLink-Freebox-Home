@@ -110,6 +110,13 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         value_fn=lambda d: d.wifi_state.get("state"),
     ),
     FreeboxBoxSensorDescription(
+        key="repeater_count",
+        name="02 · Wi-Fi · Nombre de répéteurs",
+        state_class=SensorStateClass.MEASUREMENT,
+        icon="mdi:wifi-star",
+        value_fn=lambda d: len(d.repeaters),
+    ),
+    FreeboxBoxSensorDescription(
         key="uptime",
         name="03 · Système · Temps de fonctionnement",
         icon="mdi:clock-outline",

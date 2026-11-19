@@ -22,6 +22,7 @@ ha_const.Platform = types.SimpleNamespace(
     LIGHT="light",
     ALARM_CONTROL_PANEL="alarm_control_panel",
     CAMERA="camera",
+    IMAGE="image",
     BUTTON="button",
     DEVICE_TRACKER="device_tracker",
     NUMBER="number",
