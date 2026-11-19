@@ -23,9 +23,22 @@ def resolve_freebox_model(system: dict[str, Any]) -> tuple[str, str, str]:
     model_info = system.get("model_info") if isinstance(system.get("model_info"), dict) else {}
     pretty = str(model_info.get("pretty_name") or "").strip()
     model_name = str(model_info.get("name") or "").strip().lower()
+    net_operator = str(model_info.get("net_operator") or "").strip().lower()
+    wifi_type = str(model_info.get("wifi_type") or "").strip().lower()
     board = str(system.get("board_name") or "").strip().lower()
     flavor = str(system.get("box_flavor") or "").strip().lower()
-    sig = f"{model_name} {board} {pretty.lower()} {flavor}"
+    sig = f"{model_name} {board} {pretty.lower()} {flavor} {net_operator}"
+
+    is_pro = (
+        flavor == "pro"
+        or "/pro" in model_name
+        or "freebox pro" in pretty.lower()
+        or "freepro" in sig
+        or "free_pro" in sig
+        or "fbxpro" in sig
+        or "fbxgwpro" in sig
+        or "freebox_pro" in sig
+    )
 
     is_light = (
         flavor in ("light", "essentiel")
@@ -48,7 +61,13 @@ def resolve_freebox_model(system: dict[str, Any]) -> tuple[str, str, str]:
     default_ver = ""
     asset = "freebox_ultra.png"
 
-    if any(k in sig for k in ("fbxgw9", "v9", "ultra")):
+    if is_pro:
+        if "6g" in wifi_type or "wifi 7" in sig or "wifi7" in sig or "v2" in sig:
+            commercial = "Freebox Pro Wi-Fi 7"
+        else:
+            commercial = "Freebox Pro"
+        asset = "freebox_pro.png"
+    elif any(k in sig for k in ("fbxgw9", "v9", "ultra")):
         commercial = "Freebox Ultra Essentiel" if is_light else "Freebox Ultra"
         default_ver = "v9"
         asset = "freebox_ultra.png"

@@ -230,6 +230,8 @@ def test_box_device_info_uses_pretty_name():
         ({"board_name": "fbxgw5", "model_info": {"name": "freebox_crystal", "pretty_name": "Freebox Crystal"}}, "Freebox Crystal", "freebox_mini_4k.png"),
         ({"board_name": "fbx5g", "model_info": {"name": "fbx5g", "pretty_name": "Box 5G"}}, "Freebox 5G", "freebox_5g.png"),
         ({"board_name": "fbx4g", "model_info": {"name": "fbx4g", "pretty_name": "Box 4G+"}}, "Freebox 4G+", "freebox_5g.png"),
+        ({"board_name": "fbxpro", "box_flavor": "pro", "model_info": {"name": "fbxgwpro-r1/pro", "pretty_name": "Freebox Pro (r1)"}}, "Freebox Pro (r1)", "freebox_pro.png"),
+        ({"board_name": "fbxgwpro", "box_flavor": "pro", "model_info": {"name": "fbxgwpro-r2/pro", "pretty_name": "Freebox Pro (r2)", "wifi_type": "2d4_5g_6g"}}, "Freebox Pro Wi-Fi 7 (r2)", "freebox_pro.png"),
     ]
     assets_dir = ROOT / "custom_components" / "domolink_freebox_home" / "assets"
     for payload, expected_name, expected_asset in cases:
