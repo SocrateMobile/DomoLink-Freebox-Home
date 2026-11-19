@@ -79,6 +79,18 @@ def box_device_info(host: str, system: dict[str, Any]) -> DeviceInfo:
     )
 
 
+def wifi_clients_device_info(host: str, system: dict[str, Any]) -> DeviceInfo:
+    """Build DeviceInfo for the dedicated 'Wi-Fi' sub-device grouping LAN/Wi-Fi clients."""
+    box_id = system.get("mac") or host
+    return DeviceInfo(
+        identifiers={(DOMAIN, f"wifi_clients_{box_id}")},
+        name="Wi-Fi",
+        manufacturer=MANUFACTURER,
+        model="Périphériques Wi-Fi / Réseau",
+        via_device=(DOMAIN, f"box_{box_id}"),
+    )
+
+
 def find_endpoint(
     node: dict[str, Any],
     *,

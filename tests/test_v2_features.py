@@ -219,13 +219,20 @@ def test_lan_status_dots_icons_and_sorting():
         FreeboxLanDeviceTracker,
         format_lan_device_label,
     )
-    from custom_components.domolink_freebox_home.home_helpers import host_type_icon
+    from custom_components.domolink_freebox_home.home_helpers import (
+        host_type_icon,
+        wifi_clients_device_info,
+    )
 
     assert FreeboxLanDeviceTracker._attr_entity_registry_enabled_default is True
     assert format_lan_device_label("iPhone", True) == "🟢 iPhone"
+    assert format_lan_device_label("iPhone", True, "aa:bb:cc:dd:ee:ff") == "🟢 iPhone (AA:BB:CC:DD:EE:FF)"
     assert format_lan_device_label("MacBook", False) == "🟠 MacBook"
     assert "Freebox Ultra" < format_lan_device_label("AAA", True)
     assert host_type_icon("smartphone", True) == "mdi:cellphone"
     assert host_type_icon("workstation", True) == "mdi:desktop-tower-monitor"
     assert host_type_icon("unknown_xyz", True) == "mdi:lan-connect"
     assert host_type_icon("unknown_xyz", False) == "mdi:lan-disconnect"
+
+    wifi_dev = wifi_clients_device_info("mafreebox.freebox.fr", {"mac": "AA:BB:CC:DD:EE:FF"})
+    assert wifi_dev["name"] == "Wi-Fi"

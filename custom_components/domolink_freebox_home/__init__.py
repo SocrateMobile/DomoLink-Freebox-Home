@@ -5,7 +5,7 @@ from __future__ import annotations
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 import voluptuous as vol
 
@@ -99,6 +99,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for ent_entry in er.async_entries_for_config_entry(ent_reg, entry.entry_id):
         if ent_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
             ent_reg.async_update_entity(ent_entry.entity_id, disabled_by=None)
+
+    # Remove legacy per-MAC devices (lan_*) now grouped under the single 'Wi-Fi' sub-device
+    dev_reg = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
+        if any(dom == DOMAIN and ident.startswith("lan_") for dom, ident in device.identifiers):
+            dev_reg.async_remove_device(device.id)
 
     return True
 
