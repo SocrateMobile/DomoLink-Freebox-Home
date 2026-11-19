@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+import re
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -12,7 +15,10 @@ import voluptuous as vol
 from .api import FreeboxOsClient
 from .const import CONF_API_VERSION, CONF_APP_TOKEN, CONF_USE_HTTPS, DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import resolve_freebox_model
+from .home_helpers import ASSETS_URL_BASE, resolve_freebox_model
+
+ASSETS_DIR = Path(__file__).parent / "assets"
+_RAW_TITLE_RE = re.compile(r"^(freebox(\s+v\d+)?(\s*\(r\d+\))?|freebox\s+server)$", re.IGNORECASE)
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -39,9 +45,29 @@ def _get_coordinators(hass: HomeAssistant) -> list[FreeboxHomeCoordinator]:
     ]
 
 
+async def _async_register_static_assets(hass: HomeAssistant) -> None:
+    """Expose bundled PNG assets under /api/domolink_freebox_home/assets once."""
+    if hass.data[DOMAIN].get("_static_registered"):
+        return
+    http = getattr(hass, "http", None)
+    if http is None or not ASSETS_DIR.is_dir():
+        return
+    try:
+        from homeassistant.components.http import StaticPathConfig
+
+        await http.async_register_static_paths(
+            [StaticPathConfig(ASSETS_URL_BASE, str(ASSETS_DIR), cache_headers=True)]
+        )
+    except (ImportError, AttributeError):
+        if hasattr(http, "register_static_path"):
+            http.register_static_path(ASSETS_URL_BASE, str(ASSETS_DIR), cache_headers=True)
+    hass.data[DOMAIN]["_static_registered"] = True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up DomoLink Freebox Home from a config entry."""
     hass.data.setdefault(DOMAIN, {})
+    await _async_register_static_assets(hass)
     client = FreeboxOsClient(
         session=async_get_clientsession(hass),
         host=str(entry.data[CONF_HOST]),
@@ -102,9 +128,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if ent_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
             ent_reg.async_update_entity(ent_entry.entity_id, disabled_by=None)
 
-    # Remove legacy per-MAC devices (lan_*) and refresh Freebox hub name/model
+    # Remove legacy per-MAC devices (lan_*) and refresh Freebox hub name/model + entry title
     dev_reg = dr.async_get(hass)
     box_display_name, _, _ = resolve_freebox_model(coordinator.data.system)
+    current_title = str(entry.title or "").strip()
+    if (
+        not current_title
+        or _RAW_TITLE_RE.match(current_title)
+        or current_title.lower() == str(entry.data.get(CONF_HOST, "")).lower()
+    ) and current_title != box_display_name:
+        hass.config_entries.async_update_entry(entry, title=box_display_name)
+
     for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
         if any(dom == DOMAIN and ident.startswith("lan_") for dom, ident in device.identifiers):
             dev_reg.async_remove_device(device.id)

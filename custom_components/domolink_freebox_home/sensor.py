@@ -26,7 +26,14 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator, FreeboxHomeData
-from .home_helpers import box_device_info, node_device_info
+from .home_helpers import (
+    asset_picture_url,
+    box_device_info,
+    node_device_info,
+    resolve_freebox_model,
+    resolve_player_model,
+    resolve_repeater_model,
+)
 
 
 def _freeplug_members(data: FreeboxHomeData) -> list[dict[str, Any]]:
@@ -53,6 +60,7 @@ class FreeboxBoxSensorDescription(SensorEntityDescription):
     """Describes a Freebox Server hub sensor."""
 
     value_fn: Callable[[FreeboxHomeData], Any]
+    entity_picture_fn: Callable[[FreeboxHomeData], str | None] | None = None
 
 
 BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
@@ -131,6 +139,11 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:wifi-star",
         value_fn=lambda d: len(d.repeaters),
+        entity_picture_fn=lambda d: asset_picture_url(
+            resolve_repeater_model(
+                d.repeaters[0] if d.repeaters else None, d.system
+            )[1]
+        ),
     ),
     FreeboxBoxSensorDescription(
         key="freeplug_count",
@@ -144,6 +157,9 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         name="03 · Système · Temps de fonctionnement",
         icon="mdi:clock-outline",
         value_fn=lambda d: d.system.get("uptime"),
+        entity_picture_fn=lambda d: asset_picture_url(
+            resolve_freebox_model(d.system)[2]
+        ),
     ),
     FreeboxBoxSensorDescription(
         key="disk_status",
@@ -187,6 +203,9 @@ BOX_SENSOR_DESCRIPTIONS: tuple[FreeboxBoxSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         icon="mdi:television-box",
         value_fn=lambda d: len(d.players),
+        entity_picture_fn=lambda d: asset_picture_url(
+            resolve_player_model(d.players[0] if d.players else None)[1]
+        ),
     ),
     FreeboxBoxSensorDescription(
         key="pvr_programmed_count",
@@ -314,6 +333,12 @@ class FreeboxBoxSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity):
     @property
     def native_value(self) -> Any:
         return self.entity_description.value_fn(self.coordinator.data)
+
+    @property
+    def entity_picture(self) -> str | None:
+        if self.entity_description.entity_picture_fn is not None:
+            return self.entity_description.entity_picture_fn(self.coordinator.data)
+        return None
 
 
 class FreeboxPartitionFreeSensor(CoordinatorEntity[FreeboxHomeCoordinator], SensorEntity):

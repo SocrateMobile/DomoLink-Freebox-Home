@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .coordinator import FreeboxHomeCoordinator
 from .home_helpers import (
+    asset_picture_url,
     box_device_info,
     node_device_info,
     resolve_player_model,
@@ -189,12 +190,39 @@ class FreeboxRepeaterBinarySensor(
             coordinator.client.host, coordinator.data.system
         )
 
-    @property
-    def is_on(self) -> bool:
+    def _current_repeater(self) -> dict[str, Any] | None:
         for rep in self.coordinator.data.repeaters:
             if isinstance(rep, dict) and str(rep.get("id")) == self._rep_id:
-                return str(rep.get("connection", "")).lower() == "connected"
-        return False
+                return rep
+        return None
+
+    @property
+    def is_on(self) -> bool:
+        rep = self._current_repeater()
+        return str(rep.get("connection", "")).lower() == "connected" if rep else False
+
+    @property
+    def entity_picture(self) -> str:
+        _, asset = resolve_repeater_model(
+            self._current_repeater(), self.coordinator.data.system
+        )
+        return asset_picture_url(asset)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        rep = self._current_repeater()
+        if not rep:
+            return {}
+        model_label, asset = resolve_repeater_model(rep, self.coordinator.data.system)
+        return {
+            "id": rep.get("id"),
+            "name": rep.get("name"),
+            "connection": rep.get("connection"),
+            "raw_model": rep.get("model"),
+            "resolved_model": model_label,
+            "bands": rep.get("bands") or rep.get("wifi_bands"),
+            "asset": asset,
+        }
 
 
 class FreeboxPlayerBinarySensor(
@@ -226,6 +254,11 @@ class FreeboxPlayerBinarySensor(
     def is_on(self) -> bool:
         player = self._current_player()
         return bool(player.get("reachable")) if player else False
+
+    @property
+    def entity_picture(self) -> str:
+        _, asset = resolve_player_model(self._current_player())
+        return asset_picture_url(asset)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

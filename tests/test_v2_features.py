@@ -346,8 +346,22 @@ def test_classify_lan_host_brands_and_models():
         ({"primary_name": "Asustor-AS5402T"}, "Asustor", "mdi:nas"),
         ({"primary_name": "Synology-DS923"}, "Synology", "mdi:nas"),
         ({"primary_name": "TrueNAS-Scale"}, "TrueNAS", "mdi:nas"),
+        ({"primary_name": "Google-TV-Streamer"}, "Google", "mdi:television-box"),
+        ({"primary_name": "Chromecast-Salon"}, "Google", "mdi:television-box"),
+        ({"primary_name": "Xiaomi-TV-A-Pro"}, "Xiaomi", "mdi:television"),
+        ({"primary_name": "Mi-Box-S", "vendor_name": "Xiaomi"}, "Xiaomi", "mdi:television-box"),
+        ({"primary_name": "Mi-TV-Stick", "vendor_name": "Xiaomi"}, "Xiaomi", "mdi:television-box"),
+        ({"primary_name": "MDZ-28-AA", "vendor_name": "Xiaomi"}, "Xiaomi", "mdi:television-box"),
     ]
     for host, exp_brand, exp_icon in samples:
         res = classify_lan_host(host, active=True)
         assert res.brand == exp_brand, f"Failed for {host}: got {res}"
         assert res.icon == exp_icon, f"Failed icon for {host}: got {res}"
+
+    from custom_components.domolink_freebox_home.home_helpers import (
+        asset_picture_url,
+        resolve_repeater_model,
+    )
+
+    assert asset_picture_url("freebox_repeater_wifi7.png") == "/api/domolink_freebox_home/assets/freebox_repeater_wifi7.png"
+    assert resolve_repeater_model({"has_6g": True}) == ("Répéteur Wi-Fi 7", "freebox_repeater_wifi7.png")
