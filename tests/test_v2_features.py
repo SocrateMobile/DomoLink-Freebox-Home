@@ -319,3 +319,35 @@ def test_v26_ftth_freeplug_vm_seedbox_phone_pvr_calls():
     assert asyncio.run(client.async_ring_phone()) is True
     assert len(asyncio.run(client.async_get_pvr_programmed())) == 1
     assert len(asyncio.run(client.async_get_pvr_finished())) == 2
+
+
+def test_classify_lan_host_brands_and_models():
+    from custom_components.domolink_freebox_home.device_signatures import classify_lan_host
+
+    samples = [
+        ({"primary_name": "iPhone-de-JF", "vendor_name": "Apple, Inc."}, "Apple", "mdi:cellphone"),
+        ({"primary_name": "MacBook-Pro", "vendor_name": "Apple, Inc."}, "Apple", "mdi:laptop"),
+        ({"primary_name": "[TV] Samsung QLED", "vendor_name": "Samsung Electronics"}, "Samsung", "mdi:television"),
+        ({"primary_name": "Roborock-S8", "vendor_name": "Xiaomi"}, "Aspirateur Robot", "mdi:robot-vacuum"),
+        ({"primary_name": "Denon-AVR-X2800H"}, "Denon", "mdi:amplifier"),
+        ({"primary_name": "Onkyo-TX-NR6100"}, "Onkyo", "mdi:amplifier"),
+        ({"primary_name": "Sony-Bravia-XR"}, "Sony", "mdi:television"),
+        ({"primary_name": "PS5-Salon"}, "Sony", "mdi:sony-playstation"),
+        ({"primary_name": "LG-OLED65C3"}, "LG", "mdi:television"),
+        ({"primary_name": "Hisense-VIDAA"}, "Hisense", "mdi:television"),
+        ({"primary_name": "TCL-65C845"}, "TCL", "mdi:television"),
+        ({"primary_name": "EssentielB-TV"}, "Essentiel B", "mdi:television"),
+        ({"primary_name": "Prise-Salon", "vendor_name": "Tuya Smart"}, "Tuya", "mdi:home-automation"),
+        ({"primary_name": "Sonoff-NSPanel"}, "Sonoff", "mdi:light-switch"),
+        ({"primary_name": "Reolink-RLC-811A"}, "Reolink", "mdi:cctv"),
+        ({"primary_name": "esphome-salon", "vendor_name": "Espressif"}, "ESPHome", "mdi:chip"),
+        ({"primary_name": "Arlo-Base-VMB4540"}, "Arlo", "mdi:cctv"),
+        ({"primary_name": "Ezviz-C8C"}, "Ezviz", "mdi:cctv"),
+        ({"primary_name": "Asustor-AS5402T"}, "Asustor", "mdi:nas"),
+        ({"primary_name": "Synology-DS923"}, "Synology", "mdi:nas"),
+        ({"primary_name": "TrueNAS-Scale"}, "TrueNAS", "mdi:nas"),
+    ]
+    for host, exp_brand, exp_icon in samples:
+        res = classify_lan_host(host, active=True)
+        assert res.brand == exp_brand, f"Failed for {host}: got {res}"
+        assert res.icon == exp_icon, f"Failed icon for {host}: got {res}"
