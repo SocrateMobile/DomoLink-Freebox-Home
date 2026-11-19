@@ -12,6 +12,7 @@ import voluptuous as vol
 from .api import FreeboxOsClient
 from .const import CONF_API_VERSION, CONF_APP_TOKEN, CONF_USE_HTTPS, DOMAIN
 from .coordinator import FreeboxHomeCoordinator
+from .home_helpers import resolve_freebox_model
 
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
@@ -21,6 +22,7 @@ PLATFORMS: list[Platform] = [
     Platform.LIGHT,
     Platform.ALARM_CONTROL_PANEL,
     Platform.CAMERA,
+    Platform.IMAGE,
     Platform.BUTTON,
     Platform.DEVICE_TRACKER,
     Platform.NUMBER,
@@ -100,11 +102,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if ent_entry.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
             ent_reg.async_update_entity(ent_entry.entity_id, disabled_by=None)
 
-    # Remove legacy per-MAC devices (lan_*) now grouped under the single 'Wi-Fi' sub-device
+    # Remove legacy per-MAC devices (lan_*) and refresh Freebox hub name/model
     dev_reg = dr.async_get(hass)
+    box_display_name, _, _ = resolve_freebox_model(coordinator.data.system)
     for device in dr.async_entries_for_config_entry(dev_reg, entry.entry_id):
         if any(dom == DOMAIN and ident.startswith("lan_") for dom, ident in device.identifiers):
             dev_reg.async_remove_device(device.id)
+        elif any(dom == DOMAIN and ident.startswith("box_") for dom, ident in device.identifiers):
+            if device.name != box_display_name or device.model != box_display_name:
+                dev_reg.async_update_device(
+                    device.id,
+                    name=box_display_name,
+                    model=box_display_name,
+                )
 
     return True
 
