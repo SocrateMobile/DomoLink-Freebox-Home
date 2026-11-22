@@ -76,7 +76,6 @@ class FreeboxOsClient:
         try:
             async with self._session.get(
                 url,
-                ssl=False if self.use_https else None,
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 data = await resp.json()
@@ -110,7 +109,6 @@ class FreeboxOsClient:
                     url,
                     json=json_body,
                     headers=headers,
-                    ssl=False if self.use_https else None,
                     timeout=aiohttp.ClientTimeout(total=20),
                 ) as resp:
                     status_code = getattr(resp, "status", 200)
