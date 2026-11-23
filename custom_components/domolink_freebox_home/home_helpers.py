@@ -294,7 +294,6 @@ def wifi_clients_device_info(host: str, system: dict[str, Any]) -> DeviceInfo:
         name="Wi-Fi",
         manufacturer=MANUFACTURER,
         model="Périphériques Wi-Fi / Réseau",
-        via_device=(DOMAIN, f"box_{box_id}"),
     )
 
 

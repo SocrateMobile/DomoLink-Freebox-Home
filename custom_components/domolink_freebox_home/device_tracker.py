@@ -29,6 +29,20 @@ def extract_mac(host: dict[str, Any]) -> str | None:
     return None
 
 
+def _extract_ipv4(host: dict[str, Any] | None) -> str | None:
+    """Extract active IPv4 address or fallback IPv4 from a Freebox LAN host dict."""
+    if not host:
+        return None
+    fallback: str | None = None
+    for l3 in host.get("l3connectivities") or []:
+        if isinstance(l3, dict) and l3.get("af") == "ipv4" and l3.get("addr"):
+            if l3.get("active"):
+                return str(l3["addr"])
+            if fallback is None:
+                fallback = str(l3["addr"])
+    return fallback
+
+
 def resolve_host_name(host: dict[str, Any], mac: str) -> str:
     """Resolve the best human-readable name for a Freebox LAN host."""
     primary = str(host.get("primary_name") or "").strip()
@@ -104,6 +118,7 @@ class FreeboxLanDeviceTracker(
         self._mac_upper = mac.upper()
         self._attr_unique_id = f"lan_{mac}"
         self._friendly_name = resolve_host_name(initial_host, mac)
+        self._last_ip: str | None = _extract_ipv4(initial_host)
         self._attr_device_info = wifi_clients_device_info(
             coordinator.client.host, coordinator.data.system
         )
@@ -153,13 +168,10 @@ class FreeboxLanDeviceTracker(
 
     @property
     def ip_address(self) -> str | None:
-        host = self._find_host()
-        if not host:
-            return None
-        for l3 in host.get("l3connectivities") or []:
-            if isinstance(l3, dict) and l3.get("af") == "ipv4" and l3.get("active"):
-                return str(l3.get("addr"))
-        return None
+        ip = _extract_ipv4(self._find_host())
+        if ip:
+            self._last_ip = ip
+        return self._last_ip
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

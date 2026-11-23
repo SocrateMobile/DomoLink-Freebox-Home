@@ -15,7 +15,12 @@ import voluptuous as vol
 from .api import FreeboxOsClient
 from .const import CONF_API_VERSION, CONF_APP_TOKEN, CONF_USE_HTTPS, DOMAIN
 from .coordinator import FreeboxHomeCoordinator
-from .home_helpers import ASSETS_URL_BASE, resolve_freebox_model
+from .home_helpers import (
+    ASSETS_URL_BASE,
+    box_device_info,
+    resolve_freebox_model,
+    wifi_clients_device_info,
+)
 
 ASSETS_DIR = Path(__file__).parent / "assets"
 _RAW_TITLE_RE = re.compile(r"^(freebox(\s+v\d+)?(\s*\(r\d+\))?|freebox\s+server)$", re.IGNORECASE)
@@ -120,6 +125,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(DOMAIN, "mark_calls_read", _handle_mark_calls)
 
+    dev_reg = dr.async_get(hass)
+    box_dev = dev_reg.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        **box_device_info(coordinator.client.host, coordinator.data.system),
+    )
+    wifi_info = dict(wifi_clients_device_info(coordinator.client.host, coordinator.data.system))
+    try:
+        dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            via_device_id=box_dev.id,
+            **wifi_info,
+        )
+    except TypeError:
+        box_id = coordinator.data.system.get("mac") or coordinator.client.host
+        dev_reg.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            via_device=(DOMAIN, f"box_{box_id}"),
+            **wifi_info,
+        )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Re-enable any integration-disabled entities (e.g. device_tracker created disabled in v2.0.x)
@@ -129,7 +154,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             ent_reg.async_update_entity(ent_entry.entity_id, disabled_by=None)
 
     # Remove legacy per-MAC devices (lan_*) and refresh Freebox hub name/model + entry title
-    dev_reg = dr.async_get(hass)
     box_display_name, _, _ = resolve_freebox_model(coordinator.data.system)
     current_title = str(entry.title or "").strip()
     if (
